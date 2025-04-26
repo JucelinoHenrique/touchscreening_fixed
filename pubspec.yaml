@@ -1,0 +1,56 @@
+name: touchscreening_fixed
+description: "A new Flutter project."
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+   
+  
+  flutter_tts: ^3.5.0
+ 
+  # Ícones estilo Cupertino para iOS
+  cupertino_icons: ^1.0.8
+
+  # Gerenciamento de estado
+  provider: ^6.0.5
+
+  # banco de dados
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.18.0
+  cloud_firestore: ^4.15.0
+
+
+  # Manipulação de caminhos de arquivos
+  path: ^1.9.0
+
+  # Armazenamento local leve (SharedPreferences)
+  shared_preferences: ^2.3.5
+
+  # Validação de formulários
+  flutter_form_builder: ^9.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Regras de lint recomendadas
+  flutter_lints: ^5.0.0
+
+  # Build runner para geração de código
+  build_runner: ^2.4.6
+
+flutter:
+  uses-material-design: true
+
+  # Adicionar assets aqui
+  assets:
+    - lib/assets/images/LOGO2.png
+    - lib/assets/images/LOGO4.png
+    - lib/assets/images/LOGO1.png
+    - lib/assets/images/logo.png
