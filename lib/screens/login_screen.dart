@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 🔥 Importar Firebase Auth
 import 'package:flutter_tts/flutter_tts.dart';
-import '../backend/auth_service.dart'; // 🔥 Vamos criar esse serviço AuthService
+import '../backend/auth_service.dart ';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  LoginScreenState createState() => LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class LoginScreenState extends State<LoginScreen> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FlutterTts _tts = FlutterTts();

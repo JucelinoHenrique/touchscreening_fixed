@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../Auth/provider.dart';
-import '../backend/database_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../Auth/provider.dart' as my_auth;
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
   @override
-  _WelcomeScreenState createState() => _WelcomeScreenState();
+  WelcomeScreenState createState() => WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
-  final DatabaseHelper dbHelper = DatabaseHelper();
-  late Future<Map<String, dynamic>?> _nurseDataFuture;
+class WelcomeScreenState extends State<WelcomeScreen> {
+  User? currentUser;
 
   @override
   void initState() {
     super.initState();
-    _nurseDataFuture = dbHelper.getLoggedUserData(); // Busca os dados do enfermeiro logado
+    currentUser = FirebaseAuth
+        .instance.currentUser; // 🔥 Agora busca direto do Firebase Auth
   }
 
   void _welcome() {
@@ -26,7 +26,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    final authProvider = Provider.of<my_auth.AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -45,38 +45,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 height: 120.0,
               ),
               const SizedBox(height: 20),
-              FutureBuilder<Map<String, dynamic>?>( 
-                future: _nurseDataFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Text(
-                      'Carregando...',
-                      style: TextStyle(
-                        fontSize: 19.0,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    );
-                  } else if (snapshot.hasError || snapshot.data == null) {
-                    return const Text(
-                      'Olá, Enf.',
-                      style: TextStyle(
-                        fontSize: 19.0,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    );
-                  }
-                  final nurseData = snapshot.data!;
-                  return Text(
-                    'Olá, Enf. ${nurseData['name']}',
-                    style: const TextStyle(
-                      fontSize: 19.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                },
+              Text(
+                currentUser != null
+                    ? 'Olá, Enf. ${currentUser!.email}'
+                    : 'Olá, Enf.',
+                style: const TextStyle(
+                  fontSize: 19.0,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
@@ -84,7 +61,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 style: ElevatedButton.styleFrom(
                   foregroundColor: const Color(0xFFFF6C00),
                   backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                   textStyle: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
