@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
-import '../Auth/provider.dart';
-import '../backend/database_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../Auth/provider.dart' as my_auth;
+import '../services/patient_service.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -12,33 +14,18 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final GlobalKey<ScaffoldState> _scaffoldkey = GlobalKey<ScaffoldState>();
-  final DatabaseHelper dbHelper = DatabaseHelper();
-
-  late Future<List<Map<String, dynamic>>> _patientRecordsFuture;
-  late Future<Map<String, dynamic>?> _nurseDataFuture;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController symptomsController = TextEditingController();
 
   String? selectedPriority;
-  int? editingId; // Para identificar o registro sendo editado
-  String? selectedPainOrigin; // Nova variável para armazenar a origem da dor
-  double painLevel = 0; // Nova variável para o nível da dor
+  String? selectedPainOrigin;
+  double painLevel = 0;
+  String? editingDocId;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  void _loadData() {
-    setState(() {
-      _patientRecordsFuture = dbHelper.getPatientRecords();
-      _nurseDataFuture = dbHelper.getLoggedUserData();
-    });
-  }
+  final PatientService _patientService = PatientService();
 
   @override
   void dispose() {
@@ -50,10 +37,11 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    final authProvider = Provider.of<my_auth.AuthProvider>(context);
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      key: _scaffoldkey,
+      key: _scaffoldKey,
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF6C00),
         automaticallyImplyLeading: false,
@@ -63,38 +51,15 @@ class _MainScreenState extends State<MainScreen> {
               backgroundImage: AssetImage('lib/assets/images/logo.png'),
             ),
             const SizedBox(width: 10),
-            FutureBuilder<Map<String, dynamic>?>(
-              future: _nurseDataFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Text(
-                    'Carregando...',
-                    style: TextStyle(
-                      fontSize: 19.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                } else if (snapshot.hasError || snapshot.data == null) {
-                  return const Text(
-                    'Olá, Enf.',
-                    style: TextStyle(
-                      fontSize: 19.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }
-                final nurseData = snapshot.data!;
-                return Text(
-                  'Olá, Enf. ${nurseData['name']}',
-                  style: const TextStyle(
-                    fontSize: 19.0,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                );
-              },
+            Text(
+              currentUser != null
+                  ? 'Olá, Enf. ${currentUser.email}'
+                  : 'Olá, Enf.',
+              style: const TextStyle(
+                fontSize: 19.0,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
@@ -102,7 +67,7 @@ class _MainScreenState extends State<MainScreen> {
           IconButton(
             icon: const Icon(Icons.menu),
             onPressed: () {
-              _scaffoldkey.currentState!.openDrawer();
+              _scaffoldKey.currentState!.openDrawer();
             },
           ),
         ],
@@ -117,9 +82,7 @@ class _MainScreenState extends State<MainScreen> {
               currentAccountPicture: CircleAvatar(
                 backgroundImage: AssetImage('lib/assets/images/logo.png'),
               ),
-              decoration: BoxDecoration(
-                color: Color(0xFFFF6C00),
-              ),
+              decoration: BoxDecoration(color: Color(0xFFFF6C00)),
             ),
             ListTile(
               leading: const Icon(Icons.logout),
@@ -147,34 +110,36 @@ class _MainScreenState extends State<MainScreen> {
             ),
             const SizedBox(height: 10),
             Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _patientRecordsFuture,
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('patient_records')
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
                     return const Center(
-                      child: Text('Erro ao carregar registros.'),
-                    );
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        child: Text('Erro ao carregar registros.'));
+                  } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return const Center(
-                      child: Text('Nenhum registro encontrado.'),
-                    );
+                        child: Text('Nenhum registro encontrado.'));
                   }
 
-                  final records = snapshot.data!;
+                  final records = snapshot.data!.docs;
+
                   return ListView.builder(
                     itemCount: records.length,
                     itemBuilder: (context, index) {
                       final record = records[index];
+                      final data = record.data() as Map<String, dynamic>;
                       return _buildPatientCard(
-                        id: record['id'],
-                        name: record['name'],
-                        symptoms: record['symptoms'].split(','),
-                        lastUpdate: record['lastUpdate'],
-                        color: record['color'],
-                        painOrigin: record['painOrigin'],
-                        painLevel: record['painLevel'],
+                        docId: record.id,
+                        name: data['name'],
+                        symptoms: (data['symptoms'] as String).split(','),
+                        lastUpdate: data['lastUpdate'],
+                        color: data['color'],
+                        painOrigin: data['painOrigin'],
+                        painLevel: (data['painLevel'] as num).toDouble(),
                       );
                     },
                   );
@@ -194,6 +159,97 @@ class _MainScreenState extends State<MainScreen> {
         height: 53,
         color: Color.fromARGB(255, 219, 214, 214),
       ),
+    );
+  }
+
+  Widget _buildFormFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: 'Nome do Paciente',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: ageController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Idade',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: selectedPriority,
+          items: const [
+            DropdownMenuItem(
+                value: 'Vermelho', child: Text('Vermelho - Emergência')),
+            DropdownMenuItem(
+                value: 'Laranja', child: Text('Laranja - Muito urgente')),
+            DropdownMenuItem(
+                value: 'Amarelo', child: Text('Amarelo - Urgente')),
+            DropdownMenuItem(
+                value: 'Verde', child: Text('Verde - Pouco urgente')),
+            DropdownMenuItem(value: 'Azul', child: Text('Azul - Não urgente')),
+          ],
+          onChanged: (value) => setState(() => selectedPriority = value),
+          decoration: const InputDecoration(
+            labelText: 'Prioridade (Manchester)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text('Origem da Dor:', style: TextStyle(fontSize: 16)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10.0,
+          runSpacing: 10.0,
+          children: [
+            _buildPainOriginButton(
+                Icons.face,
+                'Cabeça',
+                () => setState(() => selectedPainOrigin = 'Cabeça'),
+                selectedPainOrigin == 'Cabeça'),
+            _buildPainOriginButton(
+                Icons.accessibility,
+                'Peito',
+                () => setState(() => selectedPainOrigin = 'Peito'),
+                selectedPainOrigin == 'Peito'),
+            _buildPainOriginButton(
+                Icons.accessibility_new,
+                'Braço',
+                () => setState(() => selectedPainOrigin = 'Braço'),
+                selectedPainOrigin == 'Braço'),
+            _buildPainOriginButton(
+                Icons.directions_walk,
+                'Pernas',
+                () => setState(() => selectedPainOrigin = 'Pernas'),
+                selectedPainOrigin == 'Pernas'),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Slider(
+          value: painLevel,
+          min: 0,
+          max: 5,
+          divisions: 5,
+          label: painLevel.round().toString(),
+          onChanged: (value) => setState(() => painLevel = value),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: symptomsController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Sintomas',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -240,7 +296,7 @@ class _MainScreenState extends State<MainScreen> {
       selectedPriority = data['color'];
       selectedPainOrigin = data['painOrigin'];
       painLevel = data['painLevel']?.toDouble() ?? 0;
-      editingId = data['id'];
+      editingDocId = data['docId']; // 🔥 Corrigido: agora usamos docId
     } else {
       nameController.clear();
       ageController.clear();
@@ -248,11 +304,10 @@ class _MainScreenState extends State<MainScreen> {
       selectedPriority = null;
       selectedPainOrigin = null;
       painLevel = 0;
-      editingId = null;
+      editingDocId = null;
     }
 
-    // TTS lê informações do formulário
-    final FlutterTts flutterTts = FlutterTts();
+    final flutterTts = FlutterTts();
     await flutterTts.speak(
         'Formulário de anamnese aberto. Preencha os campos obrigatórios.');
 
@@ -275,201 +330,39 @@ class _MainScreenState extends State<MainScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Semantics(
-                  label: 'Título do formulário: Cadastro da Ficha do Paciente',
-                  child: const Text(
-                    'Cadastro da Ficha do Paciente',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Campo Nome do Paciente
-                Semantics(
-                  label: 'Campo para inserir o nome do paciente.',
-                  child: TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome do Paciente',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Campo Idade
-                Semantics(
-                  label: 'Campo para inserir a idade do paciente.',
-                  child: TextField(
-                    controller: ageController,
-                    decoration: const InputDecoration(
-                      labelText: 'Idade',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Campo Prioridade (Manchester)
-                Semantics(
-                  label: 'Campo para selecionar a prioridade do paciente.',
-                  child: DropdownButtonFormField<String>(
-                    value: selectedPriority,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Vermelho',
-                        child: Text('Vermelho - Emergência'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Laranja',
-                        child: Text('Laranja - Muito urgente'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Amarelo',
-                        child: Text('Amarelo - Urgente'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Verde',
-                        child: Text('Verde - Pouco urgente'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Azul',
-                        child: Text('Azul - Não urgente'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        selectedPriority = value;
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Prioridade (Manchester)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Origem da Dor
                 const Text(
-                  'Origem da Dor:',
-                  style: TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                Semantics(
-                  label: 'Selecione a origem da dor.',
-                  child: Wrap(
-                    spacing: 10.0,
-                    runSpacing: 10.0,
-                    children: [
-                      _buildPainOriginButton(Icons.face, 'Cabeça', () {
-                        setState(() {
-                          selectedPainOrigin = 'Cabeça';
-                        });
-                        flutterTts.speak('Origem da dor selecionada: Cabeça');
-                      }, selectedPainOrigin == 'Cabeça'),
-                      _buildPainOriginButton(Icons.accessibility, 'Peito', () {
-                        setState(() {
-                          selectedPainOrigin = 'Peito';
-                        });
-                        flutterTts.speak('Origem da dor selecionada: Peito');
-                      }, selectedPainOrigin == 'Peito'),
-                      _buildPainOriginButton(Icons.accessibility_new, 'Braço',
-                          () {
-                        setState(() {
-                          selectedPainOrigin = 'Braço';
-                        });
-                        flutterTts.speak('Origem da dor selecionada: Braço');
-                      }, selectedPainOrigin == 'Braço'),
-                      _buildPainOriginButton(Icons.directions_walk, 'Pernas',
-                          () {
-                        setState(() {
-                          selectedPainOrigin = 'Pernas';
-                        });
-                        flutterTts.speak('Origem da dor selecionada: Pernas');
-                      }, selectedPainOrigin == 'Pernas'),
-                    ],
-                  ),
+                  'Cadastro da Ficha do Paciente',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-
-                // Nível da Dor
-                Semantics(
-                  label: 'Selecione o nível da dor de 0 a 5.',
-                  child: Slider(
-                    value: painLevel,
-                    min: 0,
-                    max: 5,
-                    divisions: 5,
-                    label: painLevel.round().toString(),
-                    onChanged: (value) {
-                      setState(() {
-                        painLevel = value;
-                      });
-                      flutterTts.speak('Nível da dor selecionado: $painLevel');
-                    },
-                  ),
-                ),
+                // Campos do formulário
+                _buildFormFields(),
                 const SizedBox(height: 20),
+                // Botão de salvar
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameController.text.isEmpty ||
+                        ageController.text.isEmpty ||
+                        selectedPriority == null ||
+                        selectedPainOrigin == null) {
+                      _showErrorDialog('Todos os campos são obrigatórios.');
+                      return;
+                    }
 
-                // Campo Sintomas
-                Semantics(
-                  label: 'Campo para inserir os sintomas do paciente.',
-                  child: TextField(
-                    controller: symptomsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Sintomas',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                    await _patientService.savePatient(
+                      docId: editingDocId,
+                      name: nameController.text,
+                      age: int.tryParse(ageController.text) ?? 0,
+                      symptoms: symptomsController.text,
+                      color: selectedPriority!,
+                      painOrigin: selectedPainOrigin!,
+                      painLevel: painLevel,
+                    );
 
-                // Botão Salvar
-                Semantics(
-                  label: 'Botão para salvar os dados do formulário.',
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (nameController.text.isEmpty ||
-                          ageController.text.isEmpty ||
-                          selectedPriority == null ||
-                          selectedPainOrigin == null) {
-                        _showErrorDialog('Todos os campos são obrigatórios.');
-                        return;
-                      }
-
-                      if (editingId == null) {
-                        await dbHelper.insertPatientRecord(
-                          nameController.text,
-                          int.tryParse(ageController.text) ?? 0,
-                          symptomsController.text,
-                          DateTime.now().toString(),
-                          selectedPriority!,
-                          selectedPainOrigin!,
-                          painLevel,
-                        );
-                        flutterTts.speak('Dados salvos com sucesso.');
-                      } else {
-                        await dbHelper.updatePatientRecord(
-                          editingId!,
-                          nameController.text,
-                          int.tryParse(ageController.text) ?? 0,
-                          symptomsController.text,
-                          DateTime.now().toString(),
-                          selectedPriority!,
-                          selectedPainOrigin!,
-                          painLevel,
-                        );
-                        flutterTts.speak('Dados atualizados com sucesso.');
-                      }
-
-                      Navigator.pop(context);
-                      _loadData();
-                    },
-                    child: const Text('Salvar'),
-                  ),
+                    Navigator.pop(
+                        context); // Fecha o bottom sheet depois de salvar
+                  },
+                  child: const Text('Salvar'),
                 ),
               ],
             ),
@@ -500,13 +393,13 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildPatientCard({
-    required int id,
+    required String docId,
     required String name,
     required List<String> symptoms,
     required String lastUpdate,
     required String color,
-    required String painOrigin, // Novo campo
-    required double painLevel, // Novo campo
+    required String painOrigin,
+    required double painLevel,
   }) {
     final colorMap = {
       'Vermelho': Colors.red,
@@ -516,22 +409,11 @@ class _MainScreenState extends State<MainScreen> {
       'Azul': Colors.blue,
     };
 
-    final textColorMap = {
-      'Vermelho': Colors.black,
-      'Laranja': Colors.black,
-      'Amarelo': Colors.black,
-      'Verde': Colors.white,
-      'Azul': Colors.white,
-    };
-
     final cardColor = colorMap[color] ?? Colors.grey;
-    final textColor = textColorMap[color] ?? Colors.white;
 
     return Card(
       color: cardColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -540,101 +422,68 @@ class _MainScreenState extends State<MainScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
+                Text(name,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      color: textColor,
                       onPressed: () {
                         _openPatientForm(data: {
-                          'id': id,
+                          'docId': docId,
                           'name': name,
                           'symptoms': symptoms.join(','),
                           'lastUpdate': lastUpdate,
                           'color': color,
-                          'painOrigin': painOrigin, // Novo campo
-                          'painLevel': painLevel, // Novo campo
+                          'painOrigin': painOrigin,
+                          'painLevel': painLevel,
                         });
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close),
-                      color: textColor,
-                      onPressed: () {
-                        _showDeleteConfirmationDialog(id);
-                      },
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => _showDeleteConfirmationDialog(docId),
                     ),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            for (var symptom in symptoms)
-              Text(
-                '• $symptom',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: textColor,
-                ),
-              ),
+            ...symptoms.map((s) => Text('• $s')).toList(),
             const SizedBox(height: 8),
-            Text(
-              'Origem da Dor: $painOrigin', // Exibe a origem da dor
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-              ),
-            ),
+            Text('Origem da Dor: $painOrigin'),
             const SizedBox(height: 8),
-            Text(
-              'Nível da Dor: ${painLevel.toInt()} de 5', // Exibe o nível da dor
-              style: TextStyle(
-                fontSize: 16,
-                color: textColor,
-              ),
-            ),
+            Text('Nível da Dor: ${painLevel.toInt()} de 5'),
             const SizedBox(height: 8),
-            Text(
-              'Última Atualização: $lastUpdate',
-              style: TextStyle(
-                fontSize: 14,
-                color: textColor.withOpacity(0.7),
-              ),
-            ),
+            Text('Última Atualização: $lastUpdate',
+                style: TextStyle(color: Colors.black.withOpacity(0.6))),
           ],
         ),
       ),
     );
   }
 
-  void _showDeleteConfirmationDialog(int id) {
+  void _showDeleteConfirmationDialog(String docId) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (context) {
         return AlertDialog(
           title: const Text('Excluir Registro'),
           content:
               const Text('Você tem certeza que deseja excluir este registro?'),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancelar'),
             ),
             TextButton(
               onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('patient_records')
+                    .doc(docId)
+                    .delete();
                 Navigator.of(context).pop();
-                await dbHelper.deletePatientRecord(id);
-                _loadData();
               },
               child: const Text('Excluir'),
             ),

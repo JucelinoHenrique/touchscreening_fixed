@@ -1,30 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:touchscreening_fixed/backend/database_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🔥 Importar Firebase Auth
 import 'package:flutter_tts/flutter_tts.dart';
+import '../backend/auth_service.dart'; // 🔥 Vamos criar esse serviço AuthService
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final DatabaseHelper dbHelper = DatabaseHelper();
   final FlutterTts _tts = FlutterTts();
+  final AuthService _authService = AuthService();
 
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Narra mensagem de introdução ao carregar a tela
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speak(
-          'Bem-vindo à tela de login. Por favor, insira seu usuário e senha.');
+          'Bem-vindo à tela de login. Por favor, insira seu e-mail e senha.');
     });
   }
 
@@ -36,10 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    final String user = _userController.text.trim();
+    final String email = _userController.text.trim();
     final String password = _passwordController.text.trim();
 
-    if (user.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       _showSnackBar('Por favor, preencha todos os campos.');
       _speak('Por favor, preencha todos os campos.');
       return;
@@ -50,14 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Verifica se o usuário existe no banco de dados
-      final userData = await dbHelper.verifyUser(user, password);
+      final userCredential =
+          await _authService.signInWithEmailAndPassword(email, password);
 
-      if (userData != null) {
-        // Salva o usuário logado nos SharedPreferences
-        await dbHelper.saveLoggedUser(user);
-
-        // Narra mensagem de sucesso
+      if (userCredential != null) {
         _speak('Login realizado com sucesso.');
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/welcome');
@@ -109,41 +104,39 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 20),
             TextField(
-              cursorColor: const Color(0xFFFFFFFF),
+              cursorColor: Colors.white,
               controller: _userController,
               decoration: const InputDecoration(
-                labelText: 'Usuário',
-                labelStyle: TextStyle(color: Color(0xFFFFFFFF)),
+                labelText: 'E-mail',
+                labelStyle: TextStyle(color: Colors.white),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(255, 255, 255, 255)),
+                  borderSide: BorderSide(color: Colors.white),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFFFFFFFF)),
+                  borderSide: BorderSide(color: Colors.white),
                 ),
               ),
-              style: const TextStyle(color: Color(0xFFFFFFFF)),
+              style: const TextStyle(color: Colors.white),
               onChanged: (value) {
-                _speak('Campo usuário preenchido: $value');
+                _speak('Campo e-mail preenchido: $value');
               },
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _passwordController,
-              cursorColor: const Color(0xFFFFFFFF),
+              cursorColor: Colors.white,
               obscureText: true,
               decoration: const InputDecoration(
                 labelText: 'Senha',
-                labelStyle: TextStyle(color: Color(0xFFFFFFFF)),
+                labelStyle: TextStyle(color: Colors.white),
                 enabledBorder: UnderlineInputBorder(
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(255, 255, 255, 255)),
+                  borderSide: BorderSide(color: Colors.white),
                 ),
                 focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: Color(0xFFFFFFFF)),
+                  borderSide: BorderSide(color: Colors.white),
                 ),
               ),
-              style: const TextStyle(color: Color(0xFFFFFFFF)),
+              style: const TextStyle(color: Colors.white),
               onChanged: (value) {
                 _speak('Campo senha preenchido.');
               },
@@ -164,7 +157,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       textStyle: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
                     child: const Text('Entrar'),
                   ),
