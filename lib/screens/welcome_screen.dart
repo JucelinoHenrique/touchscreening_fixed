@@ -16,8 +16,7 @@ class WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
-    currentUser = FirebaseAuth
-        .instance.currentUser; // 🔥 Agora busca direto do Firebase Auth
+    currentUser = FirebaseAuth.instance.currentUser;
   }
 
   void _welcome() {

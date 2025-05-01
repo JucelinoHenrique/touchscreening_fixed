@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "727736580528",
+    "project_id": "touchscreeing",
+    "storage_bucket": "touchscreeing.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:727736580528:android:3a177e5d13c242cbbd7e75",
+        "android_client_info": {
+          "package_name": "com.example.touchscreening_fixed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlr4ZOrDoz-3WNAgdqxhZFaTxxmtJS7po"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

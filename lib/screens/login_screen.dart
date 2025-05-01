@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import '../backend/auth_service.dart ';
+import '../backend/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -63,6 +63,29 @@ class LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       _showSnackBar('Erro ao fazer login: $e');
       _speak('Ocorreu um erro ao tentar realizar o login.');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final userCredential = await _authService.signInWithGoogle();
+      if (userCredential != null) {
+        _speak('Login com Google realizado com sucesso.');
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/welcome');
+        }
+      }
+    } catch (e) {
+      _showSnackBar('Erro ao fazer login com Google: $e');
+      _speak('Ocorreu um erro ao tentar realizar o login com o Google.');
     } finally {
       setState(() {
         _isLoading = false;
@@ -143,24 +166,49 @@ class LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 20),
             _isLoading
                 ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: () {
-                      _speak('Tentando realizar login.');
-                      _login();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      foregroundColor: const Color(0xFFFF6C00),
-                      backgroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 30, vertical: 15),
-                      textStyle: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                : Column(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          _speak('Tentando realizar login.');
+                          _login();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF6C00),
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 30, vertical: 15),
+                          textStyle: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text('Entrar'),
                       ),
-                    ),
-                    child: const Text('Entrar'),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _speak('Tentando realizar login com o Google.');
+                          _loginWithGoogle();
+                        },
+                        icon: const Icon(Icons.login),
+                        label: const Text('login com Google'),
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF6C00),
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 15),
+                          textStyle: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+            const SizedBox(height: 20),
             TextButton(
               onPressed: () {
                 _speak('Navegando para a tela de cadastro.');

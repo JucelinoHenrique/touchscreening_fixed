@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -14,8 +15,8 @@ class AuthService {
       );
       return userCredential;
     } catch (e) {
-      print("Erro ao registrar: $e");
-      return null;
+      print('Erro ao registrar usuário: ${e.toString()}');
+      rethrow; // 🔥 Isso vai repassar o erro para o cadastro_screen poder capturar melhor
     }
   }
 
@@ -30,6 +31,31 @@ class AuthService {
       return userCredential;
     } catch (e) {
       print("Erro ao logar: $e");
+      return null;
+    }
+  }
+
+  // Login com Google 🔥 (Nova função)
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        // Login cancelado pelo usuário
+        return null;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      return await _auth.signInWithCredential(credential);
+    } catch (e) {
+      print("Erro ao logar com Google: $e");
       return null;
     }
   }
