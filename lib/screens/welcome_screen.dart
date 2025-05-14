@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../Auth/provider.dart' as my_auth;
 
 class WelcomeScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class WelcomeScreen extends StatefulWidget {
 
 class WelcomeScreenState extends State<WelcomeScreen> {
   User? currentUser;
+  String? nurseName;
 
   @override
   void initState() {
@@ -46,7 +48,7 @@ class WelcomeScreenState extends State<WelcomeScreen> {
               const SizedBox(height: 20),
               Text(
                 currentUser != null
-                    ? 'Olá, Enf. ${currentUser!.email}'
+                    ? 'Olá, Enf. ${currentUser?.uid}'
                     : 'Olá, Enf.',
                 style: const TextStyle(
                   fontSize: 19.0,

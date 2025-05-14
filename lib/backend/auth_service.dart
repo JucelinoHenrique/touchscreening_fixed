@@ -3,20 +3,19 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Registrar novo usuário
   Future<UserCredential?> registerWithEmailAndPassword(
       String email, String password) async {
     try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
+      return await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return userCredential;
     } catch (e) {
-      print('Erro ao registrar usuário: ${e.toString()}');
-      rethrow; // 🔥 Isso vai repassar o erro para o cadastro_screen poder capturar melhor
+      print('Erro ao registrar usuário: $e');
+      rethrow; // repassa para ser tratado na UI
     }
   }
 
@@ -24,47 +23,51 @@ class AuthService {
   Future<UserCredential?> signInWithEmailAndPassword(
       String email, String password) async {
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      return await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return userCredential;
     } catch (e) {
-      print("Erro ao logar: $e");
+      print('Erro ao fazer login com email/senha: $e');
       return null;
     }
   }
 
-  // Login com Google 🔥 (Nova função)
+  // Login com Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        // Login cancelado pelo usuário
+        print('Login com Google cancelado pelo usuário');
         return null;
       }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
-      final OAuthCredential credential = GoogleAuthProvider.credential(
+      final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
       return await _auth.signInWithCredential(credential);
     } catch (e) {
-      print("Erro ao logar com Google: $e");
+      print('Erro ao logar com Google: $e');
       return null;
     }
   }
 
-  // Logout
+  // Logout (Firebase + Google)
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+      await _googleSignIn.signOut(); // para garantir logout do Google
+    } catch (e) {
+      print('Erro ao fazer logout: $e');
+    }
   }
 
-  // Verificar se usuário está logado
+  // Usuário atual
   User? get currentUser => _auth.currentUser;
 }
