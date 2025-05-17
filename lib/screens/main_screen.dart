@@ -21,6 +21,14 @@ class _MainScreenState extends State<MainScreen> {
   final TextEditingController symptomsController = TextEditingController();
   final TextEditingController allergiesController = TextEditingController();
   final TextEditingController weightController = TextEditingController();
+  final TextEditingController susCardController = TextEditingController();
+  final TextEditingController cpfRgController = TextEditingController();
+  final TextEditingController motherNameController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
+  final TextEditingController birthDateController = TextEditingController();
+
+  String? selectedSex;
+  String? selectedMaritalStatus;
   String? selectedPriority;
   String? editingDocId;
 
@@ -33,6 +41,11 @@ class _MainScreenState extends State<MainScreen> {
     symptomsController.dispose();
     allergiesController.dispose();
     weightController.dispose();
+    susCardController.dispose();
+    cpfRgController.dispose();
+    motherNameController.dispose();
+    addressController.dispose();
+    birthDateController.dispose();
 
     super.dispose();
   }
@@ -155,6 +168,8 @@ class _MainScreenState extends State<MainScreen> {
                         color: data['color'],
                         weight: data['weight'],
                         allergies: data['allergies'],
+                        cpfRg: data['cpfRg'],
+                        susCard: data['susCard'],
                       );
                     },
                   );
@@ -188,6 +203,76 @@ class _MainScreenState extends State<MainScreen> {
             border: OutlineInputBorder(),
           ),
         ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: birthDateController,
+          decoration: const InputDecoration(
+            labelText: 'Data de Nascimento',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: selectedSex,
+          onChanged: (value) => setState(() => selectedSex = value),
+          decoration: const InputDecoration(
+            labelText: 'Sexo',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+            DropdownMenuItem(value: 'Feminino', child: Text('Feminino')),
+            DropdownMenuItem(value: 'Outros', child: Text('Outros'))
+          ],
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: selectedMaritalStatus,
+          onChanged: (value) => setState(() => selectedMaritalStatus = value),
+          decoration: const InputDecoration(
+            labelText: 'Estado Civil',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Solteiro', child: Text('Solteiro')),
+            DropdownMenuItem(value: 'Casado', child: Text('Casado')),
+            DropdownMenuItem(value: 'Divorciado', child: Text('Divorciado')),
+            DropdownMenuItem(value: 'Viúvo', child: Text('Viúvo')),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: cpfRgController,
+          decoration: const InputDecoration(
+            labelText: 'RG ou CPF',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: susCardController,
+          decoration: const InputDecoration(
+            labelText: 'Cartão SUS',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: motherNameController,
+          decoration: const InputDecoration(
+            labelText: 'Nome da Mãe',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: addressController,
+          decoration: const InputDecoration(
+            labelText: 'Endereço',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
         const SizedBox(height: 10),
         TextField(
           controller: ageController,
@@ -267,6 +352,25 @@ class _MainScreenState extends State<MainScreen> {
       allergiesController.clear();
       selectedPriority = null;
       editingDocId = null;
+      nameController.clear();
+      ageController.clear();
+      symptomsController.clear();
+      weightController.clear();
+      allergiesController.clear();
+      birthDateController.clear();
+      susCardController.clear();
+      cpfRgController.clear();
+      motherNameController.clear();
+      addressController.clear();
+      selectedSex = null;
+      selectedMaritalStatus = null;
+      selectedPriority = null;
+      editingDocId = null;
+      setState(() {
+        selectedSex = null;
+        selectedMaritalStatus = null;
+        selectedPriority = null;
+      });
     }
 
     final flutterTts = FlutterTts();
@@ -312,14 +416,22 @@ class _MainScreenState extends State<MainScreen> {
                     }
 
                     await _patientService.savePatient(
-                        docId: editingDocId,
-                        name: nameController.text,
-                        age: int.tryParse(ageController.text) ?? 0,
-                        symptoms: symptomsController.text,
-                        color: selectedPriority!,
-                        isCompleted: false,
-                        allergies: allergiesController.text,
-                        weight: weightController.text);
+                      docId: editingDocId,
+                      name: nameController.text,
+                      age: int.tryParse(ageController.text) ?? 0,
+                      weight: weightController.text,
+                      symptoms: symptomsController.text,
+                      color: selectedPriority!,
+                      isCompleted: false,
+                      allergies: allergiesController.text,
+                      cpfRg: cpfRgController.text,
+                      susCard: susCardController.text,
+                      birthDate: birthDateController.text,
+                      sex: selectedSex ?? '',
+                      maritalStatus: selectedMaritalStatus ?? '',
+                      motherName: motherNameController.text,
+                      address: addressController.text,
+                    );
 
                     Navigator.pop(
                         context); // Fecha o bottom sheet depois de salvar
@@ -363,6 +475,8 @@ class _MainScreenState extends State<MainScreen> {
     required int age,
     String? weight,
     String? allergies,
+    required cpfRg,
+    required susCard,
   }) {
     final colorMap = {
       'Vermelho': Colors.red.shade100,
@@ -402,6 +516,11 @@ class _MainScreenState extends State<MainScreen> {
                     Text('$age anos',
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black54)),
+                    const SizedBox(height: 8),
+                    Text('CPF/RG: $cpfRg',
+                        style: TextStyle(fontSize: 13, color: Colors.black)),
+                    Text('Cartão SUS: $susCard',
+                        style: TextStyle(fontSize: 13, color: Colors.black)),
                   ],
                 ),
                 Row(
@@ -425,6 +544,8 @@ class _MainScreenState extends State<MainScreen> {
                           'color': color,
                           'weight': weight ?? '',
                           'allergies': allergies ?? '',
+                          'cpfRg': cpfRg,
+                          'susCard': susCard,
                         });
                       },
                     ),

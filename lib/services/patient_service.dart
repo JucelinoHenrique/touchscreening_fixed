@@ -17,15 +17,29 @@ class PatientService {
     required String color,
     required bool isCompleted,
     String? allergies,
+    required String cpfRg,
+    required String susCard,
+    required String birthDate,
+    required String sex,
+    required String maritalStatus,
+    required String motherName,
+    required String address,
   }) async {
     final patientData = {
       'name': name,
       'age': age,
       'weight': weight,
       'symptoms': symptoms,
-      'lastUpdate': formatter.format(now), // Aqui é o ponto crítico corrigido
       'color': color,
       'isCompleted': isCompleted,
+      'lastUpdate': formatter.format(now),
+      'cpfRg': cpfRg,
+      'susCard': susCard,
+      'birthDate': birthDate,
+      'sex': sex,
+      'maritalStatus': maritalStatus,
+      'motherName': motherName,
+      'address': address,
       if (allergies != null && allergies.isNotEmpty) 'allergies': allergies,
     };
 
