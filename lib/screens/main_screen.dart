@@ -149,6 +149,7 @@ class _MainScreenState extends State<MainScreen> {
                       return _buildPatientCard(
                         docId: record.id,
                         name: data['name'],
+                        age: data['age'],
                         symptoms: (data['symptoms'] as String).split(','),
                         lastUpdate: data['lastUpdate'],
                         color: data['color'],
@@ -359,37 +360,54 @@ class _MainScreenState extends State<MainScreen> {
     required List<String> symptoms,
     required String lastUpdate,
     required String color,
+    required int age,
     String? weight,
     String? allergies,
   }) {
     final colorMap = {
-      'Vermelho': Colors.red,
-      'Laranja': Colors.orange,
-      'Amarelo': Colors.yellow,
-      'Verde': Colors.green,
-      'Azul': Colors.blue,
+      'Vermelho': Colors.red.shade100,
+      'Laranja': Colors.orange.shade100,
+      'Amarelo': Colors.yellow.shade100,
+      'Verde': Colors.green.shade100,
+      'Azul': Colors.blue.shade100,
     };
 
-    final cardColor = colorMap[color] ?? Colors.grey;
+    final cardColor = colorMap[color] ?? Colors.grey.shade200;
 
     return Card(
       color: cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header: nome e idade + ações
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black)),
+                    const SizedBox(height: 4),
+                    Text('$age anos',
+                        style: const TextStyle(
+                            fontSize: 14, color: Colors.black54)),
+                  ],
+                ),
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.check),
+                      icon: const Icon(Icons.check_circle_outline),
                       tooltip: 'Marcar como concluído',
                       onPressed: () async {
                         await _patientService.markAsCompleted(docId);
@@ -401,6 +419,7 @@ class _MainScreenState extends State<MainScreen> {
                         _openPatientForm(data: {
                           'docId': docId,
                           'name': name,
+                          'age': age,
                           'symptoms': symptoms.join(','),
                           'lastUpdate': lastUpdate,
                           'color': color,
@@ -417,21 +436,43 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               ],
             ),
+
+            const Divider(thickness: 1.2),
             const SizedBox(height: 8),
+
+            // Sintomas
+            const Text('Sintomas:',
+                style: TextStyle(fontWeight: FontWeight.bold)),
             ...symptoms.map((s) => Text('• $s')).toList(),
-            if (weight != null && weight.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Peso: $weight kg'),
+
+            if (weight != null && weight.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: const [
+                  Icon(Icons.monitor_weight_outlined, size: 18),
+                  SizedBox(width: 6),
+                  Text('Peso:', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
               ),
-            if (allergies != null && allergies.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Alergias: $allergies'),
+              Text('$weight kg'),
+            ],
+
+            if (allergies != null && allergies.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: const [
+                  Icon(Icons.warning_amber_rounded, size: 18),
+                  SizedBox(width: 6),
+                  Text('Alergias:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
               ),
+              Text(allergies!),
+            ],
+
             const SizedBox(height: 8),
             Text('Última Atualização: $lastUpdate',
-                style: TextStyle(color: Colors.black.withOpacity(0.6))),
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
           ],
         ),
       ),
