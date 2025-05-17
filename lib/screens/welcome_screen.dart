@@ -48,7 +48,7 @@ class WelcomeScreenState extends State<WelcomeScreen> {
               const SizedBox(height: 20),
               Text(
                 currentUser != null
-                    ? 'Olá, Enf. ${currentUser?.uid}'
+                    ? 'Olá, Enf. ${currentUser?.displayName ?? currentUser!.email}'
                     : 'Olá, Enf.',
                 style: const TextStyle(
                   fontSize: 19.0,
