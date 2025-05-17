@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
@@ -14,7 +15,9 @@ class AuthService {
         password: password,
       );
     } catch (e) {
-      print('Erro ao registrar usuário: $e');
+      if (kDebugMode) {
+        print('Erro ao registrar usuário: $e');
+      }
       rethrow; // repassa para ser tratado na UI
     }
   }
@@ -28,7 +31,9 @@ class AuthService {
         password: password,
       );
     } catch (e) {
-      print('Erro ao fazer login com email/senha: $e');
+      if (kDebugMode) {
+        print('Erro ao fazer login com email/senha: $e');
+      }
       return null;
     }
   }
@@ -39,7 +44,9 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        print('Login com Google cancelado pelo usuário');
+        if (kDebugMode) {
+          print('Login com Google cancelado pelo usuário');
+        }
         return null;
       }
 
@@ -53,7 +60,9 @@ class AuthService {
 
       return await _auth.signInWithCredential(credential);
     } catch (e) {
-      print('Erro ao logar com Google: $e');
+      if (kDebugMode) {
+        print('Erro ao logar com Google: $e');
+      }
       return null;
     }
   }
@@ -64,7 +73,9 @@ class AuthService {
       await _auth.signOut();
       await _googleSignIn.signOut(); // para garantir logout do Google
     } catch (e) {
-      print('Erro ao fazer logout: $e');
+      if (kDebugMode) {
+        print('Erro ao fazer logout: $e');
+      }
     }
   }
 
