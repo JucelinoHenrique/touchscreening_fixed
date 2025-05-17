@@ -53,7 +53,7 @@ class _MainScreenState extends State<MainScreen> {
             const SizedBox(width: 10),
             Text(
               currentUser != null
-                  ? 'Olá, Enf. ${currentUser.email}'
+                  ? 'Olá, Enf. ${currentUser.displayName}'
                   : 'Olá, Enf.',
               style: const TextStyle(
                 fontSize: 19.0,
@@ -76,13 +76,16 @@ class _MainScreenState extends State<MainScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            const UserAccountsDrawerHeader(
-              accountName: Text('Enfermeira'),
-              accountEmail: Text('email@hospital.com'),
-              currentAccountPicture: CircleAvatar(
+            UserAccountsDrawerHeader(
+              accountName: Text(currentUser != null
+                  ? 'Enf. ${currentUser.displayName}'
+                  : 'Olá, Enf.'),
+              accountEmail:
+                  Text(currentUser != null ? ' ${currentUser.email}' : ''),
+              currentAccountPicture: const CircleAvatar(
                 backgroundImage: AssetImage('lib/assets/images/logo.png'),
               ),
-              decoration: BoxDecoration(color: Color(0xFFFF6C00)),
+              decoration: const BoxDecoration(color: Color(0xFFFF6C00)),
             ),
             ListTile(
               leading: const Icon(Icons.logout),
