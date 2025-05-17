@@ -12,6 +12,7 @@ class PatientService {
     required String color,
     required String painOrigin,
     required double painLevel,
+    required bool isCompleted,
   }) async {
     final patientData = {
       'name': name,
@@ -19,6 +20,7 @@ class PatientService {
       'symptoms': symptoms,
       'lastUpdate': DateTime.now().toString(),
       'color': color,
+      'isCompleted': isCompleted,
       'painOrigin': painOrigin,
       'painLevel': painLevel,
     };
@@ -28,5 +30,9 @@ class PatientService {
     } else {
       await patientRecords.doc(docId).update(patientData);
     }
+  }
+
+  Future<void> markAsCompleted(String docId) async {
+    await patientRecords.doc(docId).update({'isCompleted': true});
   }
 }

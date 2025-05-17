@@ -88,6 +88,13 @@ class _MainScreenState extends State<MainScreen> {
               decoration: const BoxDecoration(color: Color(0xFFFF6C00)),
             ),
             ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('Atendimentos Finalizados'),
+              onTap: () {
+                Navigator.pushNamed(context, '/finished');
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Sair'),
               onTap: () {
@@ -116,6 +123,8 @@ class _MainScreenState extends State<MainScreen> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('patient_records')
+                    .where('isCompleted',
+                        isEqualTo: false) // apenas não concluídos
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -360,6 +369,7 @@ class _MainScreenState extends State<MainScreen> {
                       color: selectedPriority!,
                       painOrigin: selectedPainOrigin!,
                       painLevel: painLevel,
+                      isCompleted: false,
                     );
 
                     Navigator.pop(
@@ -430,6 +440,13 @@ class _MainScreenState extends State<MainScreen> {
                         fontSize: 18, fontWeight: FontWeight.bold)),
                 Row(
                   children: [
+                    IconButton(
+                      icon: const Icon(Icons.check),
+                      tooltip: 'Marcar como concluído',
+                      onPressed: () async {
+                        await _patientService.markAsCompleted(docId);
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(Icons.edit),
                       onPressed: () {
