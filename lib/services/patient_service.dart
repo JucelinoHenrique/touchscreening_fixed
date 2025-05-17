@@ -1,28 +1,32 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class PatientService {
   final CollectionReference patientRecords =
       FirebaseFirestore.instance.collection('patient_records');
 
+  final now = DateTime.now();
+  final formatter = DateFormat('dd/MM/yyyy HH:mm');
+
   Future<void> savePatient({
     required String? docId,
     required String name,
     required int age,
+    required String weight,
     required String symptoms,
     required String color,
-    required String painOrigin,
-    required double painLevel,
     required bool isCompleted,
+    String? allergies,
   }) async {
     final patientData = {
       'name': name,
       'age': age,
+      'weight': weight,
       'symptoms': symptoms,
-      'lastUpdate': DateTime.now().toString(),
+      'lastUpdate': formatter.format(now), // Aqui é o ponto crítico corrigido
       'color': color,
       'isCompleted': isCompleted,
-      'painOrigin': painOrigin,
-      'painLevel': painLevel,
+      if (allergies != null && allergies.isNotEmpty) 'allergies': allergies,
     };
 
     if (docId == null) {

@@ -19,10 +19,9 @@ class _MainScreenState extends State<MainScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   final TextEditingController symptomsController = TextEditingController();
-
+  final TextEditingController allergiesController = TextEditingController();
+  final TextEditingController weightController = TextEditingController();
   String? selectedPriority;
-  String? selectedPainOrigin;
-  double painLevel = 0;
   String? editingDocId;
 
   final PatientService _patientService = PatientService();
@@ -32,6 +31,9 @@ class _MainScreenState extends State<MainScreen> {
     nameController.dispose();
     ageController.dispose();
     symptomsController.dispose();
+    allergiesController.dispose();
+    weightController.dispose();
+
     super.dispose();
   }
 
@@ -150,8 +152,8 @@ class _MainScreenState extends State<MainScreen> {
                         symptoms: (data['symptoms'] as String).split(','),
                         lastUpdate: data['lastUpdate'],
                         color: data['color'],
-                        painOrigin: data['painOrigin'],
-                        painLevel: (data['painLevel'] as num).toDouble(),
+                        weight: data['weight'],
+                        allergies: data['allergies'],
                       );
                     },
                   );
@@ -195,6 +197,15 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
+        TextField(
+          controller: weightController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Peso (kg)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: selectedPriority,
           items: const [
@@ -215,43 +226,15 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text('Origem da Dor:', style: TextStyle(fontSize: 16)),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 10.0,
-          runSpacing: 10.0,
-          children: [
-            _buildPainOriginButton(
-                Icons.face,
-                'Cabeça',
-                () => setState(() => selectedPainOrigin = 'Cabeça'),
-                selectedPainOrigin == 'Cabeça'),
-            _buildPainOriginButton(
-                Icons.accessibility,
-                'Peito',
-                () => setState(() => selectedPainOrigin = 'Peito'),
-                selectedPainOrigin == 'Peito'),
-            _buildPainOriginButton(
-                Icons.accessibility_new,
-                'Braço',
-                () => setState(() => selectedPainOrigin = 'Braço'),
-                selectedPainOrigin == 'Braço'),
-            _buildPainOriginButton(
-                Icons.directions_walk,
-                'Pernas',
-                () => setState(() => selectedPainOrigin = 'Pernas'),
-                selectedPainOrigin == 'Pernas'),
-          ],
+        TextField(
+          controller: allergiesController,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Alergias (Opcional)',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: 10),
-        Slider(
-          value: painLevel,
-          min: 0,
-          max: 5,
-          divisions: 5,
-          label: painLevel.round().toString(),
-          onChanged: (value) => setState(() => painLevel = value),
-        ),
         const SizedBox(height: 10),
         TextField(
           controller: symptomsController,
@@ -265,57 +248,21 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildPainOriginButton(
-      IconData icon, String label, VoidCallback onTap, bool isSelected) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? Colors.orange : Colors.grey,
-                width: 2.0,
-              ),
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-            padding: const EdgeInsets.all(8.0),
-            child: Icon(
-              icon,
-              size: 40,
-              color: isSelected ? Colors.orange : Colors.black,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.orange : Colors.black,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _openPatientForm({Map<String, dynamic>? data}) async {
     if (data != null) {
       nameController.text = data['name'];
       ageController.text = data['age'].toString();
       symptomsController.text = data['symptoms'];
       selectedPriority = data['color'];
-      selectedPainOrigin = data['painOrigin'];
-      painLevel = data['painLevel']?.toDouble() ?? 0;
-      editingDocId = data['docId']; // 🔥 Corrigido: agora usamos docId
+      editingDocId = data['docId'];
+      weightController.text = data['weight'] ?? '';
+      allergiesController.text = data['allergies'] ?? '';
+// 🔥 Corrigido: agora usamos docId
     } else {
       nameController.clear();
       ageController.clear();
       symptomsController.clear();
       selectedPriority = null;
-      selectedPainOrigin = null;
-      painLevel = 0;
       editingDocId = null;
     }
 
@@ -356,21 +303,20 @@ class _MainScreenState extends State<MainScreen> {
                     if (nameController.text.isEmpty ||
                         ageController.text.isEmpty ||
                         selectedPriority == null ||
-                        selectedPainOrigin == null) {
+                        weightController.text.isEmpty) {
                       _showErrorDialog('Todos os campos são obrigatórios.');
                       return;
                     }
 
                     await _patientService.savePatient(
-                      docId: editingDocId,
-                      name: nameController.text,
-                      age: int.tryParse(ageController.text) ?? 0,
-                      symptoms: symptomsController.text,
-                      color: selectedPriority!,
-                      painOrigin: selectedPainOrigin!,
-                      painLevel: painLevel,
-                      isCompleted: false,
-                    );
+                        docId: editingDocId,
+                        name: nameController.text,
+                        age: int.tryParse(ageController.text) ?? 0,
+                        symptoms: symptomsController.text,
+                        color: selectedPriority!,
+                        isCompleted: false,
+                        allergies: allergiesController.text,
+                        weight: weightController.text);
 
                     Navigator.pop(
                         context); // Fecha o bottom sheet depois de salvar
@@ -411,8 +357,8 @@ class _MainScreenState extends State<MainScreen> {
     required List<String> symptoms,
     required String lastUpdate,
     required String color,
-    required String painOrigin,
-    required double painLevel,
+    String? weight,
+    String? allergies,
   }) {
     final colorMap = {
       'Vermelho': Colors.red,
@@ -456,8 +402,8 @@ class _MainScreenState extends State<MainScreen> {
                           'symptoms': symptoms.join(','),
                           'lastUpdate': lastUpdate,
                           'color': color,
-                          'painOrigin': painOrigin,
-                          'painLevel': painLevel,
+                          'weight': weight ?? '',
+                          'allergies': allergies ?? '',
                         });
                       },
                     ),
@@ -471,10 +417,16 @@ class _MainScreenState extends State<MainScreen> {
             ),
             const SizedBox(height: 8),
             ...symptoms.map((s) => Text('• $s')).toList(),
-            const SizedBox(height: 8),
-            Text('Origem da Dor: $painOrigin'),
-            const SizedBox(height: 8),
-            Text('Nível da Dor: ${painLevel.toInt()} de 5'),
+            if (weight != null && weight.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Peso: $weight kg'),
+              ),
+            if (allergies != null && allergies.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Alergias: $allergies'),
+              ),
             const SizedBox(height: 8),
             Text('Última Atualização: $lastUpdate',
                 style: TextStyle(color: Colors.black.withOpacity(0.6))),
