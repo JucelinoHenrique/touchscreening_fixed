@@ -262,6 +262,8 @@ class _MainScreenState extends State<MainScreen> {
       nameController.clear();
       ageController.clear();
       symptomsController.clear();
+      weightController.clear();
+      allergiesController.clear();
       selectedPriority = null;
       editingDocId = null;
     }
