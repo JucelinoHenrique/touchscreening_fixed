@@ -10,12 +10,13 @@ class PatientService {
   Future<void> savePatient({
     required String? docId,
     required String name,
-    required int? age,
-    required double? weight,
+    required int?
+        age, // Idade pode continuar opcional ou se tornar obrigatória também? Por ora, mantenho opcional.
     required String symptoms,
     required String color,
     required bool isCompleted,
     String? allergies,
+    String? medicamentosUsoContinuo,
     required String cpfRg,
     required String susCard,
     required String birthDate,
@@ -23,20 +24,21 @@ class PatientService {
     required String maritalStatus,
     required String motherName,
     required String address,
-    int? pressaoSistolica,
-    int? pressaoDiastolica,
-    int? frequenciaCardiaca,
-    int? saturacaoO2,
-    double? temperatura,
-    int? frequenciaRespiratoria,
-    String? horaSinaisVitais,
+    // SINAIS VITAIS - TORNANDO OBRIGATÓRIOS
+    required double weight,
+    required int pressaoSistolica,
+    required int pressaoDiastolica,
+    required int frequenciaCardiaca,
+    required int saturacaoO2,
+    required double temperatura,
+    required int frequenciaRespiratoria,
+    required String horaSinaisVitais,
   }) async {
     final String formattedLastUpdate = formatter.format(DateTime.now());
 
     final patientData = <String, dynamic>{
       'name': name,
       'age': age,
-      'weight': weight,
       'symptoms': symptoms,
       'color': color,
       'isCompleted': isCompleted,
@@ -48,16 +50,17 @@ class PatientService {
       'maritalStatus': maritalStatus,
       'motherName': motherName,
       'address': address,
+      'weight': weight,
+      'pressaoSistolica': pressaoSistolica,
+      'pressaoDiastolica': pressaoDiastolica,
+      'frequenciaCardiaca': frequenciaCardiaca,
+      'saturacaoO2': saturacaoO2,
+      'temperatura': temperatura,
+      'frequenciaRespiratoria': frequenciaRespiratoria,
+      'horaSinaisVitais': horaSinaisVitais,
       if (allergies != null && allergies.isNotEmpty) 'allergies': allergies,
-      if (pressaoSistolica != null) 'pressaoSistolica': pressaoSistolica,
-      if (pressaoDiastolica != null) 'pressaoDiastolica': pressaoDiastolica,
-      if (frequenciaCardiaca != null) 'frequenciaCardiaca': frequenciaCardiaca,
-      if (saturacaoO2 != null) 'saturacaoO2': saturacaoO2,
-      if (temperatura != null) 'temperatura': temperatura,
-      if (frequenciaRespiratoria != null)
-        'frequenciaRespiratoria': frequenciaRespiratoria,
-      if (horaSinaisVitais != null && horaSinaisVitais.isNotEmpty)
-        'horaSinaisVitais': horaSinaisVitais,
+      if (medicamentosUsoContinuo != null && medicamentosUsoContinuo.isNotEmpty)
+        'medicamentosUsoContinuo': medicamentosUsoContinuo,
     };
 
     if (docId == null) {
