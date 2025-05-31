@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,14 +19,30 @@ class _MainScreenState extends State<MainScreen> {
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
-  final TextEditingController symptomsController = TextEditingController();
+  final TextEditingController symptomsController =
+      TextEditingController(); // Corresponde a Situação/Queixa
   final TextEditingController allergiesController = TextEditingController();
-  final TextEditingController weightController = TextEditingController();
+  final TextEditingController weightController =
+      TextEditingController(); // Será movido para Sinais Vitais
   final TextEditingController susCardController = TextEditingController();
   final TextEditingController cpfRgController = TextEditingController();
   final TextEditingController motherNameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
   final TextEditingController birthDateController = TextEditingController();
+
+  // Controllers para Sinais Vitais
+  final TextEditingController pressaoArterialSistolicaController =
+      TextEditingController();
+  final TextEditingController pressaoArterialDiastolicaController =
+      TextEditingController();
+  final TextEditingController frequenciaCardiacaController =
+      TextEditingController();
+  final TextEditingController saturacaoO2Controller = TextEditingController();
+  final TextEditingController temperaturaController = TextEditingController();
+  final TextEditingController frequenciaRespiratoriaController =
+      TextEditingController();
+  final TextEditingController horaSinaisVitaisController =
+      TextEditingController();
 
   String? selectedSex;
   String? selectedMaritalStatus;
@@ -46,6 +63,14 @@ class _MainScreenState extends State<MainScreen> {
     motherNameController.dispose();
     addressController.dispose();
     birthDateController.dispose();
+
+    pressaoArterialSistolicaController.dispose();
+    pressaoArterialDiastolicaController.dispose();
+    frequenciaCardiacaController.dispose();
+    saturacaoO2Controller.dispose();
+    temperaturaController.dispose();
+    frequenciaRespiratoriaController.dispose();
+    horaSinaisVitaisController.dispose();
 
     super.dispose();
   }
@@ -138,8 +163,8 @@ class _MainScreenState extends State<MainScreen> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('patient_records')
-                    .where('isCompleted',
-                        isEqualTo: false) // apenas não concluídos
+                    .where('isCompleted', isEqualTo: false)
+                    .orderBy('lastUpdate', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -161,15 +186,7 @@ class _MainScreenState extends State<MainScreen> {
                       final data = record.data() as Map<String, dynamic>;
                       return _buildPatientCard(
                         docId: record.id,
-                        name: data['name'],
-                        age: data['age'],
-                        symptoms: (data['symptoms'] as String).split(','),
-                        lastUpdate: data['lastUpdate'],
-                        color: data['color'],
-                        weight: data['weight'],
-                        allergies: data['allergies'],
-                        cpfRg: data['cpfRg'],
-                        susCard: data['susCard'],
+                        data: data,
                       );
                     },
                   );
@@ -207,9 +224,23 @@ class _MainScreenState extends State<MainScreen> {
         TextField(
           controller: birthDateController,
           decoration: const InputDecoration(
-            labelText: 'Data de Nascimento',
+            labelText: 'Data de Nascimento (DD/MM/AAAA)',
             border: OutlineInputBorder(),
           ),
+          onTap: () async {
+            FocusScope.of(context)
+                .requestFocus(FocusNode()); // Para não abrir o teclado
+            DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(1900),
+                lastDate: DateTime.now());
+            if (pickedDate != null) {
+              birthDateController.text =
+                  DateFormat('dd/MM/yyyy').format(pickedDate);
+            }
+          },
+          readOnly: true,
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
@@ -222,7 +253,7 @@ class _MainScreenState extends State<MainScreen> {
           items: const [
             DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
             DropdownMenuItem(value: 'Feminino', child: Text('Feminino')),
-            DropdownMenuItem(value: 'Outros', child: Text('Outros'))
+            DropdownMenuItem(value: 'Outro', child: Text('Outro'))
           ],
         ),
         const SizedBox(height: 10),
@@ -234,10 +265,13 @@ class _MainScreenState extends State<MainScreen> {
             border: OutlineInputBorder(),
           ),
           items: const [
-            DropdownMenuItem(value: 'Solteiro', child: Text('Solteiro')),
-            DropdownMenuItem(value: 'Casado', child: Text('Casado')),
-            DropdownMenuItem(value: 'Divorciado', child: Text('Divorciado')),
-            DropdownMenuItem(value: 'Viúvo', child: Text('Viúvo')),
+            DropdownMenuItem(value: 'Solteiro(a)', child: Text('Solteiro(a)')),
+            DropdownMenuItem(value: 'Casado(a)', child: Text('Casado(a)')),
+            DropdownMenuItem(
+                value: 'Divorciado(a)', child: Text('Divorciado(a)')),
+            DropdownMenuItem(value: 'Viúvo(a)', child: Text('Viúvo(a)')),
+            DropdownMenuItem(
+                value: 'União Estável', child: Text('União Estável')),
           ],
         ),
         const SizedBox(height: 10),
@@ -268,11 +302,10 @@ class _MainScreenState extends State<MainScreen> {
         TextField(
           controller: addressController,
           decoration: const InputDecoration(
-            labelText: 'Endereço',
+            labelText: 'Endereço (Rua, Nº, Bairro, Cidade)',
             border: OutlineInputBorder(),
           ),
         ),
-        const SizedBox(height: 10),
         const SizedBox(height: 10),
         TextField(
           controller: ageController,
@@ -283,13 +316,110 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: weightController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Peso (kg)',
-            border: OutlineInputBorder(),
-          ),
+
+        // MODIFICADO: ExpansionTile para Sinais Vitais
+        ExpansionTile(
+          title: const Text('Sinais Vitais',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          initiallyExpanded:
+              false, // Pode ser true se preferir que comece aberto
+          childrenPadding: const EdgeInsets.all(10.0).copyWith(top: 0),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+          children: [
+            TextField(
+              controller: weightController, // Movido para cá
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Peso (kg)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: pressaoArterialSistolicaController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'PA Sistólica (mmHg)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: pressaoArterialDiastolicaController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'PA Diastólica (mmHg)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: frequenciaCardiacaController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'FC (bpm)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: saturacaoO2Controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'SPO₂ (%)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: temperaturaController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Temp (°C)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: frequenciaRespiratoriaController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'FR (rpm)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: horaSinaisVitaisController,
+              decoration: const InputDecoration(
+                labelText: 'Hora da Aferição (HH:mm)',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.access_time),
+              ),
+              onTap: () async {
+                FocusScope.of(context).requestFocus(FocusNode());
+                TimeOfDay? pickedTime = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (pickedTime != null) {
+                  // ignore: use_build_context_synchronously
+                  horaSinaisVitaisController.text = pickedTime.format(context);
+                }
+              },
+              readOnly: true,
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
@@ -321,12 +451,12 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        const SizedBox(height: 10),
         TextField(
-          controller: symptomsController,
+          controller: symptomsController, // Situação/Queixa
           maxLines: 3,
           decoration: const InputDecoration(
-            labelText: 'Sintomas',
+            labelText:
+                'Situação / Queixa', // MODIFICADO: Label mais próxima da ficha
             border: OutlineInputBorder(),
           ),
         ),
@@ -336,36 +466,60 @@ class _MainScreenState extends State<MainScreen> {
 
   void _openPatientForm({Map<String, dynamic>? data}) async {
     if (data != null) {
-      nameController.text = data['name'];
-      ageController.text = data['age'].toString();
-      symptomsController.text = data['symptoms'];
-      selectedPriority = data['color'];
-      editingDocId = data['docId'];
-      weightController.text = data['weight'] ?? '';
+      // Editando
+      editingDocId = data['docId']
+          as String?; // MODIFICADO: Garantir que é o docId correto
+      nameController.text = data['name'] ?? '';
+      ageController.text = data['age']?.toString() ?? '';
+      symptomsController.text = data['symptoms'] ?? '';
+      selectedPriority = data['color'] ?? '';
+      weightController.text = data['weight']?.toString() ??
+          ''; // MODIFICADO: Acesso e conversão segura
       allergiesController.text = data['allergies'] ?? '';
-// 🔥 Corrigido: agora usamos docId
+      cpfRgController.text = data['cpfRg'] ?? '';
+      susCardController.text = data['susCard'] ?? '';
+      birthDateController.text = data['birthDate'] ?? '';
+      selectedSex = data['sex'];
+      selectedMaritalStatus = data['maritalStatus'];
+      motherNameController.text = data['motherName'] ?? '';
+      addressController.text = data['address'] ?? '';
+
+      // NOVO: Popular campos de sinais vitais
+      pressaoArterialSistolicaController.text =
+          data['pressaoSistolica']?.toString() ?? '';
+      pressaoArterialDiastolicaController.text =
+          data['pressaoDiastolica']?.toString() ?? '';
+      frequenciaCardiacaController.text =
+          data['frequenciaCardiaca']?.toString() ?? '';
+      saturacaoO2Controller.text = data['saturacaoO2']?.toString() ?? '';
+      temperaturaController.text = data['temperatura']?.toString() ?? '';
+      frequenciaRespiratoriaController.text =
+          data['frequenciaRespiratoria']?.toString() ?? '';
+      horaSinaisVitaisController.text = data['horaSinaisVitais'] ?? '';
+      setState(() {}); // Para atualizar os dropdowns e outros valores de estado
     } else {
-      nameController.clear();
-      ageController.clear();
-      symptomsController.clear();
-      weightController.clear();
-      allergiesController.clear();
-      selectedPriority = null;
+      // Adicionando novo
       editingDocId = null;
       nameController.clear();
       ageController.clear();
       symptomsController.clear();
       weightController.clear();
       allergiesController.clear();
-      birthDateController.clear();
-      susCardController.clear();
       cpfRgController.clear();
+      susCardController.clear();
+      birthDateController.clear();
       motherNameController.clear();
       addressController.clear();
-      selectedSex = null;
-      selectedMaritalStatus = null;
-      selectedPriority = null;
-      editingDocId = null;
+
+      // NOVO: Limpar campos de sinais vitais
+      pressaoArterialSistolicaController.clear();
+      pressaoArterialDiastolicaController.clear();
+      frequenciaCardiacaController.clear();
+      saturacaoO2Controller.clear();
+      temperaturaController.clear();
+      frequenciaRespiratoriaController.clear();
+      horaSinaisVitaisController.clear();
+
       setState(() {
         selectedSex = null;
         selectedMaritalStatus = null;
@@ -375,7 +529,7 @@ class _MainScreenState extends State<MainScreen> {
 
     final flutterTts = FlutterTts();
     await flutterTts.speak(
-        'Formulário de anamnese aberto. Preencha os campos obrigatórios.');
+        'Formulário de paciente aberto. Preencha os campos necessários.');
 
     showModalBottomSheet(
       context: context,
@@ -401,25 +555,41 @@ class _MainScreenState extends State<MainScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                // Campos do formulário
-                _buildFormFields(),
+                _buildFormFields(), // Contém o ExpansionTile agora
                 const SizedBox(height: 20),
-                // Botão de salvar
                 ElevatedButton(
                   onPressed: () async {
                     if (nameController.text.isEmpty ||
-                        ageController.text.isEmpty ||
-                        selectedPriority == null ||
-                        weightController.text.isEmpty) {
-                      _showErrorDialog('Todos os campos são obrigatórios.');
+                        // ageController.text.isEmpty || // Idade pode não ser obrigatória inicialmente
+                        selectedPriority == null) {
+                      // Removida obrigatoriedade de peso por enquanto, pode ser adicionado depois
+                      _showErrorDialog(
+                          'Nome do paciente e Prioridade são obrigatórios.');
                       return;
                     }
+
+                    // Preparar dados dos sinais vitais para salvar
+                    // Convertendo para os tipos corretos e tratando nulos/vazios
+                    int? ageValue = int.tryParse(ageController.text);
+                    double? weightValue = double.tryParse(weightController.text
+                        .replaceAll(',', '.')); // Trata vírgula como decimal
+
+                    int? paSistolica =
+                        int.tryParse(pressaoArterialSistolicaController.text);
+                    int? paDiastolica =
+                        int.tryParse(pressaoArterialDiastolicaController.text);
+                    int? fc = int.tryParse(frequenciaCardiacaController.text);
+                    int? spo2 = int.tryParse(saturacaoO2Controller.text);
+                    double? temp = double.tryParse(
+                        temperaturaController.text.replaceAll(',', '.'));
+                    int? fr =
+                        int.tryParse(frequenciaRespiratoriaController.text);
 
                     await _patientService.savePatient(
                       docId: editingDocId,
                       name: nameController.text,
-                      age: int.tryParse(ageController.text) ?? 0,
-                      weight: weightController.text,
+                      age: ageValue, // Já é int?
+                      weight: weightValue, // Já é double?
                       symptoms: symptomsController.text,
                       color: selectedPriority!,
                       isCompleted: false,
@@ -431,10 +601,16 @@ class _MainScreenState extends State<MainScreen> {
                       maritalStatus: selectedMaritalStatus ?? '',
                       motherName: motherNameController.text,
                       address: addressController.text,
+                      pressaoSistolica: paSistolica,
+                      pressaoDiastolica: paDiastolica,
+                      frequenciaCardiaca: fc,
+                      saturacaoO2: spo2,
+                      temperatura: temp,
+                      frequenciaRespiratoria: fr,
+                      horaSinaisVitais: horaSinaisVitaisController.text,
                     );
 
-                    Navigator.pop(
-                        context); // Fecha o bottom sheet depois de salvar
+                    Navigator.pop(context);
                   },
                   child: const Text('Salvar'),
                 ),
@@ -451,7 +627,7 @@ class _MainScreenState extends State<MainScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Erro'),
+          title: const Text('Erro de Validação'),
           content: Text(message),
           actions: [
             TextButton(
@@ -466,18 +642,34 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // MODIFICADO: _buildPatientCard para aceitar e exibir mais dados
   Widget _buildPatientCard({
     required String docId,
-    required String name,
-    required List<String> symptoms,
-    required String lastUpdate,
-    required String color,
-    required int age,
-    String? weight,
-    String? allergies,
-    required cpfRg,
-    required susCard,
+    required Map<String, dynamic> data,
   }) {
+    final name = data['name'] as String? ?? 'Nome não informado';
+    final age = data['age'] as int?;
+    final symptomsRaw = data['symptoms'] as String?;
+    final symptomsList = (symptomsRaw?.isNotEmpty ?? false)
+        ? symptomsRaw!.split(',')
+        : <String>[];
+    final lastUpdate = data['lastUpdate'] as String? ??
+        'Data não informada'; // Supondo que 'lastUpdate' seja uma string formatada
+    final color = data['color'] as String? ?? 'Azul'; // Cor padrão
+    final weight = data['weight']?.toString();
+    final allergies = data['allergies'] as String?;
+    final cpfRg = data['cpfRg'] as String? ?? '-';
+    final susCard = data['susCard'] as String? ?? '-';
+
+    // NOVO: Extrair dados de sinais vitais para exibição
+    final paSistolica = data['pressaoSistolica']?.toString();
+    final paDiastolica = data['pressaoDiastolica']?.toString();
+    final fc = data['frequenciaCardiaca']?.toString();
+    final spo2 = data['saturacaoO2']?.toString();
+    final temp = data['temperatura']?.toString();
+    final fr = data['frequenciaRespiratoria']?.toString();
+    final horaSinais = data['horaSinaisVitais'] as String?;
+
     final colorMap = {
       'Vermelho': Colors.red.shade100,
       'Laranja': Colors.orange.shade100,
@@ -485,7 +677,6 @@ class _MainScreenState extends State<MainScreen> {
       'Verde': Colors.green.shade100,
       'Azul': Colors.blue.shade100,
     };
-
     final cardColor = colorMap[color] ?? Colors.grey.shade200;
 
     return Card(
@@ -500,98 +691,116 @@ class _MainScreenState extends State<MainScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: nome e idade + ações
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name,
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black)),
-                    const SizedBox(height: 4),
-                    Text('$age anos',
-                        style: const TextStyle(
-                            fontSize: 14, color: Colors.black54)),
-                    const SizedBox(height: 8),
-                    Text('CPF/RG: $cpfRg',
-                        style: TextStyle(fontSize: 13, color: Colors.black)),
-                    Text('Cartão SUS: $susCard',
-                        style: TextStyle(fontSize: 13, color: Colors.black)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87)),
+                      if (age != null)
+                        Text('$age anos',
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      if (cpfRg != '-')
+                        Text('CPF/RG: $cpfRg',
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black87)),
+                      if (susCard != '-')
+                        Text('SUS: $susCard',
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black87)),
+                    ],
+                  ),
                 ),
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.check_circle_outline),
+                      icon: const Icon(Icons.check_circle_outline,
+                          color: Colors.green),
                       tooltip: 'Marcar como concluído',
                       onPressed: () async {
                         await _patientService.markAsCompleted(docId);
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.edit),
+                      icon: const Icon(Icons.edit, color: Colors.blueGrey),
                       onPressed: () {
-                        _openPatientForm(data: {
-                          'docId': docId,
-                          'name': name,
-                          'age': age,
-                          'symptoms': symptoms.join(','),
-                          'lastUpdate': lastUpdate,
-                          'color': color,
-                          'weight': weight ?? '',
-                          'allergies': allergies ?? '',
-                          'cpfRg': cpfRg,
-                          'susCard': susCard,
-                        });
+                        // Adiciona o docId aos dados para edição
+                        final editData = Map<String, dynamic>.from(data);
+                        editData['docId'] = docId;
+                        _openPatientForm(data: editData);
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete),
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
                       onPressed: () => _showDeleteConfirmationDialog(docId),
                     ),
                   ],
                 ),
               ],
             ),
-
-            const Divider(thickness: 1.2),
+            const Divider(thickness: 1),
             const SizedBox(height: 8),
 
-            // Sintomas
-            const Text('Sintomas:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            ...symptoms.map((s) => Text('• $s')).toList(),
-
-            if (weight != null && weight.isNotEmpty) ...[
+            // NOVO: Exibição dos Sinais Vitais no Card
+            if (horaSinais != null && horaSinais.isNotEmpty)
+              Text('Sinais Vitais ($horaSinais):',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+            Wrap(
+              // Usa Wrap para melhor layout dos sinais vitais
+              spacing: 8.0, // Espaço horizontal entre os itens
+              runSpacing: 4.0, // Espaço vertical entre as linhas
+              children: [
+                if (paSistolica != null && paDiastolica != null)
+                  Chip(label: Text('PA: $paSistolica/$paDiastolica mmHg')),
+                if (fc != null) Chip(label: Text('FC: $fc bpm')),
+                if (spo2 != null) Chip(label: Text('SPO₂: $spo2 %')),
+                if (temp != null) Chip(label: Text('Temp: $temp °C')),
+                if (fr != null) Chip(label: Text('FR: $fr rpm')),
+                if (weight != null) Chip(label: Text('Peso: $weight kg')),
+              ],
+            ),
+            if (horaSinais != null && horaSinais.isNotEmpty)
               const SizedBox(height: 8),
-              Row(
-                children: const [
-                  Icon(Icons.monitor_weight_outlined, size: 18),
-                  SizedBox(width: 6),
-                  Text('Peso:', style: TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-              Text('$weight kg'),
+
+            if (symptomsList.isNotEmpty) ...[
+              const Text('Situação/Queixa:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ...symptomsList
+                  .map((s) => Text('• $s',
+                      style: const TextStyle(color: Colors.black87)))
+                  .toList(),
+              const SizedBox(height: 8),
             ],
 
             if (allergies != null && allergies.isNotEmpty) ...[
-              const SizedBox(height: 8),
               Row(
                 children: const [
-                  Icon(Icons.warning_amber_rounded, size: 18),
+                  Icon(Icons.warning_amber_rounded,
+                      size: 18, color: Colors.orangeAccent),
                   SizedBox(width: 6),
                   Text('Alergias:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ],
               ),
-              Text(allergies!),
+              Text(allergies, style: const TextStyle(color: Colors.black87)),
+              const SizedBox(height: 8),
             ],
 
-            const SizedBox(height: 8),
+            Text('Prioridade: $color',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black54)),
             Text('Última Atualização: $lastUpdate',
                 style: const TextStyle(fontSize: 12, color: Colors.black54)),
           ],
@@ -621,7 +830,7 @@ class _MainScreenState extends State<MainScreen> {
                     .delete();
                 Navigator.of(context).pop();
               },
-              child: const Text('Excluir'),
+              child: const Text('Excluir', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
