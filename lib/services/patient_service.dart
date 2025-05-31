@@ -10,8 +10,7 @@ class PatientService {
   Future<void> savePatient({
     required String? docId,
     required String name,
-    required int?
-        age, // Idade pode continuar opcional ou se tornar obrigatória também? Por ora, mantenho opcional.
+    required int? age,
     required String symptoms,
     required String color,
     required bool isCompleted,
@@ -24,7 +23,6 @@ class PatientService {
     required String maritalStatus,
     required String motherName,
     required String address,
-    // SINAIS VITAIS - TORNANDO OBRIGATÓRIOS
     required double weight,
     required int pressaoSistolica,
     required int pressaoDiastolica,

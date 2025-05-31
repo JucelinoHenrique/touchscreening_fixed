@@ -22,8 +22,10 @@ class _MainScreenState extends State<MainScreen> {
   final TextEditingController symptomsController =
       TextEditingController(); // Corresponde a Situação/Queixa
   final TextEditingController allergiesController = TextEditingController();
-  final TextEditingController weightController =
-      TextEditingController(); // Será movido para Sinais Vitais
+  // NOVO: Controller para Medicamentos em Uso Contínuo
+  final TextEditingController medicamentosUsoContinuoController =
+      TextEditingController();
+  final TextEditingController weightController = TextEditingController();
   final TextEditingController susCardController = TextEditingController();
   final TextEditingController cpfRgController = TextEditingController();
   final TextEditingController motherNameController = TextEditingController();
@@ -57,6 +59,8 @@ class _MainScreenState extends State<MainScreen> {
     ageController.dispose();
     symptomsController.dispose();
     allergiesController.dispose();
+    // NOVO: Dispose do controller de Medicamentos
+    medicamentosUsoContinuoController.dispose();
     weightController.dispose();
     susCardController.dispose();
     cpfRgController.dispose();
@@ -170,6 +174,8 @@ class _MainScreenState extends State<MainScreen> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
+                    print(
+                        "Erro no StreamBuilder MainScreen: ${snapshot.error} \nStack trace: ${snapshot.stackTrace}"); // Log do erro
                     return const Center(
                         child: Text('Erro ao carregar registros.'));
                   } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -316,18 +322,15 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
-
-        // MODIFICADO: ExpansionTile para Sinais Vitais
         ExpansionTile(
           title: const Text('Sinais Vitais',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          initiallyExpanded:
-              false, // Pode ser true se preferir que comece aberto
+          initiallyExpanded: false,
           childrenPadding: const EdgeInsets.all(10.0).copyWith(top: 0),
           tilePadding: const EdgeInsets.symmetric(horizontal: 10),
           children: [
             TextField(
-              controller: weightController, // Movido para cá
+              controller: weightController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
@@ -451,12 +454,22 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
+        // NOVO: Campo para Medicamentos em Uso Contínuo
+        TextField(
+          controller: medicamentosUsoContinuoController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Medicamentos em Uso Contínuo (Opcional)',
+            border: OutlineInputBorder(),
+            hintText: 'Ex: Losartana 50mg, AAS 100mg...',
+          ),
+        ),
+        const SizedBox(height: 10),
         TextField(
           controller: symptomsController, // Situação/Queixa
           maxLines: 3,
           decoration: const InputDecoration(
-            labelText:
-                'Situação / Queixa', // MODIFICADO: Label mais próxima da ficha
+            labelText: 'Situação / Queixa',
             border: OutlineInputBorder(),
           ),
         ),
@@ -467,15 +480,16 @@ class _MainScreenState extends State<MainScreen> {
   void _openPatientForm({Map<String, dynamic>? data}) async {
     if (data != null) {
       // Editando
-      editingDocId = data['docId']
-          as String?; // MODIFICADO: Garantir que é o docId correto
+      editingDocId = data['docId'] as String?;
       nameController.text = data['name'] ?? '';
       ageController.text = data['age']?.toString() ?? '';
       symptomsController.text = data['symptoms'] ?? '';
       selectedPriority = data['color'] ?? '';
-      weightController.text = data['weight']?.toString() ??
-          ''; // MODIFICADO: Acesso e conversão segura
+      weightController.text = data['weight']?.toString() ?? '';
       allergiesController.text = data['allergies'] ?? '';
+      // NOVO: Carregar medicamentos em uso
+      medicamentosUsoContinuoController.text =
+          data['medicamentosUsoContinuo'] ?? '';
       cpfRgController.text = data['cpfRg'] ?? '';
       susCardController.text = data['susCard'] ?? '';
       birthDateController.text = data['birthDate'] ?? '';
@@ -484,7 +498,6 @@ class _MainScreenState extends State<MainScreen> {
       motherNameController.text = data['motherName'] ?? '';
       addressController.text = data['address'] ?? '';
 
-      // NOVO: Popular campos de sinais vitais
       pressaoArterialSistolicaController.text =
           data['pressaoSistolica']?.toString() ?? '';
       pressaoArterialDiastolicaController.text =
@@ -496,22 +509,21 @@ class _MainScreenState extends State<MainScreen> {
       frequenciaRespiratoriaController.text =
           data['frequenciaRespiratoria']?.toString() ?? '';
       horaSinaisVitaisController.text = data['horaSinaisVitais'] ?? '';
-      setState(() {}); // Para atualizar os dropdowns e outros valores de estado
+      setState(() {});
     } else {
-      // Adicionando novo
       editingDocId = null;
       nameController.clear();
       ageController.clear();
       symptomsController.clear();
       weightController.clear();
       allergiesController.clear();
+      medicamentosUsoContinuoController.clear();
       cpfRgController.clear();
       susCardController.clear();
       birthDateController.clear();
       motherNameController.clear();
       addressController.clear();
 
-      // NOVO: Limpar campos de sinais vitais
       pressaoArterialSistolicaController.clear();
       pressaoArterialDiastolicaController.clear();
       frequenciaCardiacaController.clear();
@@ -555,45 +567,139 @@ class _MainScreenState extends State<MainScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                _buildFormFields(), // Contém o ExpansionTile agora
+                _buildFormFields(),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () async {
+                    // Validação básica (Nome e Prioridade)
                     if (nameController.text.isEmpty ||
-                        // ageController.text.isEmpty || // Idade pode não ser obrigatória inicialmente
                         selectedPriority == null) {
-                      // Removida obrigatoriedade de peso por enquanto, pode ser adicionado depois
                       _showErrorDialog(
                           'Nome do paciente e Prioridade são obrigatórios.');
                       return;
                     }
 
-                    // Preparar dados dos sinais vitais para salvar
-                    // Convertendo para os tipos corretos e tratando nulos/vazios
-                    int? ageValue = int.tryParse(ageController.text);
-                    double? weightValue = double.tryParse(weightController.text
-                        .replaceAll(',', '.')); // Trata vírgula como decimal
+                    // --- VALIDAÇÃO DOS CAMPOS DOUBLE OBRIGATÓRIOS ---
 
-                    int? paSistolica =
-                        int.tryParse(pressaoArterialSistolicaController.text);
-                    int? paDiastolica =
-                        int.tryParse(pressaoArterialDiastolicaController.text);
-                    int? fc = int.tryParse(frequenciaCardiacaController.text);
-                    int? spo2 = int.tryParse(saturacaoO2Controller.text);
-                    double? temp = double.tryParse(
+                    // Peso (double obrigatório)
+                    if (weightController.text.isEmpty) {
+                      _showErrorDialog('O campo "Peso (kg)" é obrigatório.');
+                      return;
+                    }
+                    final double? weightValueParsed = double.tryParse(
+                        weightController.text.replaceAll(',', '.'));
+                    if (weightValueParsed == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "Peso (kg)". Use números (ex: 70.5).');
+                      return;
+                    }
+
+                    // Temperatura (double obrigatório)
+                    if (temperaturaController.text.isEmpty) {
+                      _showErrorDialog('O campo "Temp (°C)" é obrigatório.');
+                      return;
+                    }
+                    final double? temperaturaValueParsed = double.tryParse(
                         temperaturaController.text.replaceAll(',', '.'));
-                    int? fr =
+                    if (temperaturaValueParsed == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "Temp (°C)". Use números (ex: 36.5).');
+                      return;
+                    }
+
+                    // --- VALIDAÇÃO DOS CAMPOS INT OBRIGATÓRIOS (SINAIS VITAIS) ---
+                    // Pressão Arterial Sistólica
+                    if (pressaoArterialSistolicaController.text.isEmpty) {
+                      _showErrorDialog('O campo "PA Sistólica" é obrigatório.');
+                      return;
+                    }
+                    final int? paSistolicaValue =
+                        int.tryParse(pressaoArterialSistolicaController.text);
+                    if (paSistolicaValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "PA Sistólica". Use números inteiros.');
+                      return;
+                    }
+
+                    // Pressão Arterial Diastólica
+                    if (pressaoArterialDiastolicaController.text.isEmpty) {
+                      _showErrorDialog(
+                          'O campo "PA Diastólica" é obrigatório.');
+                      return;
+                    }
+                    final int? paDiastolicaValue =
+                        int.tryParse(pressaoArterialDiastolicaController.text);
+                    if (paDiastolicaValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "PA Diastólica". Use números inteiros.');
+                      return;
+                    }
+
+                    // Frequência Cardíaca
+                    if (frequenciaCardiacaController.text.isEmpty) {
+                      _showErrorDialog('O campo "FC (bpm)" é obrigatório.');
+                      return;
+                    }
+                    final int? fcValue =
+                        int.tryParse(frequenciaCardiacaController.text);
+                    if (fcValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "FC (bpm)". Use números inteiros.');
+                      return;
+                    }
+
+                    // Saturação de O₂
+                    if (saturacaoO2Controller.text.isEmpty) {
+                      _showErrorDialog('O campo "SPO₂ (%)" é obrigatório.');
+                      return;
+                    }
+                    final int? spo2Value =
+                        int.tryParse(saturacaoO2Controller.text);
+                    if (spo2Value == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "SPO₂ (%)". Use números inteiros.');
+                      return;
+                    }
+
+                    // Frequência Respiratória
+                    if (frequenciaRespiratoriaController.text.isEmpty) {
+                      _showErrorDialog('O campo "FR (rpm)" é obrigatório.');
+                      return;
+                    }
+                    final int? frValue =
                         int.tryParse(frequenciaRespiratoriaController.text);
+                    if (frValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "FR (rpm)". Use números inteiros.');
+                      return;
+                    }
+
+                    // Hora da Aferição dos Sinais Vitais (String obrigatória)
+                    if (horaSinaisVitaisController.text.isEmpty) {
+                      _showErrorDialog(
+                          'O campo "Hora da Aferição" dos sinais vitais é obrigatório.');
+                      return;
+                    }
+
+                    // --- FIM DA VALIDAÇÃO DOS SINAIS VITAIS ---
+
+                    int? ageValue = int.tryParse(
+                        ageController.text); // Idade continua opcional
 
                     await _patientService.savePatient(
                       docId: editingDocId,
                       name: nameController.text,
-                      age: ageValue, // Já é int?
-                      weight: weightValue, // Já é double?
+                      age: ageValue,
                       symptoms: symptomsController.text,
                       color: selectedPriority!,
                       isCompleted: false,
-                      allergies: allergiesController.text,
+                      allergies: allergiesController.text.isNotEmpty
+                          ? allergiesController.text
+                          : null,
+                      medicamentosUsoContinuo:
+                          medicamentosUsoContinuoController.text.isNotEmpty
+                              ? medicamentosUsoContinuoController.text
+                              : null,
                       cpfRg: cpfRgController.text,
                       susCard: susCardController.text,
                       birthDate: birthDateController.text,
@@ -601,12 +707,13 @@ class _MainScreenState extends State<MainScreen> {
                       maritalStatus: selectedMaritalStatus ?? '',
                       motherName: motherNameController.text,
                       address: addressController.text,
-                      pressaoSistolica: paSistolica,
-                      pressaoDiastolica: paDiastolica,
-                      frequenciaCardiaca: fc,
-                      saturacaoO2: spo2,
-                      temperatura: temp,
-                      frequenciaRespiratoria: fr,
+                      weight: weightValueParsed,
+                      pressaoSistolica: paSistolicaValue,
+                      pressaoDiastolica: paDiastolicaValue,
+                      frequenciaCardiaca: fcValue,
+                      saturacaoO2: spo2Value,
+                      temperatura: temperaturaValueParsed,
+                      frequenciaRespiratoria: frValue,
                       horaSinaisVitais: horaSinaisVitaisController.text,
                     );
 
@@ -642,7 +749,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  // MODIFICADO: _buildPatientCard para aceitar e exibir mais dados
   Widget _buildPatientCard({
     required String docId,
     required Map<String, dynamic> data,
@@ -653,15 +759,15 @@ class _MainScreenState extends State<MainScreen> {
     final symptomsList = (symptomsRaw?.isNotEmpty ?? false)
         ? symptomsRaw!.split(',')
         : <String>[];
-    final lastUpdate = data['lastUpdate'] as String? ??
-        'Data não informada'; // Supondo que 'lastUpdate' seja uma string formatada
-    final color = data['color'] as String? ?? 'Azul'; // Cor padrão
+    final lastUpdate = data['lastUpdate'] as String? ?? 'Data não informada';
+    final color = data['color'] as String? ?? 'Azul';
     final weight = data['weight']?.toString();
     final allergies = data['allergies'] as String?;
+    // NOVO: Extrair medicamentos em uso
+    final medicamentosUsoContinuo = data['medicamentosUsoContinuo'] as String?;
     final cpfRg = data['cpfRg'] as String? ?? '-';
     final susCard = data['susCard'] as String? ?? '-';
 
-    // NOVO: Extrair dados de sinais vitais para exibição
     final paSistolica = data['pressaoSistolica']?.toString();
     final paDiastolica = data['pressaoDiastolica']?.toString();
     final fc = data['frequenciaCardiaca']?.toString();
@@ -732,7 +838,6 @@ class _MainScreenState extends State<MainScreen> {
                     IconButton(
                       icon: const Icon(Icons.edit, color: Colors.blueGrey),
                       onPressed: () {
-                        // Adiciona o docId aos dados para edição
                         final editData = Map<String, dynamic>.from(data);
                         editData['docId'] = docId;
                         _openPatientForm(data: editData);
@@ -748,16 +853,13 @@ class _MainScreenState extends State<MainScreen> {
             ),
             const Divider(thickness: 1),
             const SizedBox(height: 8),
-
-            // NOVO: Exibição dos Sinais Vitais no Card
             if (horaSinais != null && horaSinais.isNotEmpty)
               Text('Sinais Vitais ($horaSinais):',
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 14)),
             Wrap(
-              // Usa Wrap para melhor layout dos sinais vitais
-              spacing: 8.0, // Espaço horizontal entre os itens
-              runSpacing: 4.0, // Espaço vertical entre as linhas
+              spacing: 8.0,
+              runSpacing: 4.0,
               children: [
                 if (paSistolica != null && paDiastolica != null)
                   Chip(label: Text('PA: $paSistolica/$paDiastolica mmHg')),
@@ -765,7 +867,10 @@ class _MainScreenState extends State<MainScreen> {
                 if (spo2 != null) Chip(label: Text('SPO₂: $spo2 %')),
                 if (temp != null) Chip(label: Text('Temp: $temp °C')),
                 if (fr != null) Chip(label: Text('FR: $fr rpm')),
-                if (weight != null) Chip(label: Text('Peso: $weight kg')),
+                if (weight != null && weight.isNotEmpty)
+                  Chip(
+                      label: Text(
+                          'Peso: $weight kg')), // Adicionado cheque de isNotEmpty
               ],
             ),
             if (horaSinais != null && horaSinais.isNotEmpty)
@@ -793,6 +898,24 @@ class _MainScreenState extends State<MainScreen> {
                 ],
               ),
               Text(allergies, style: const TextStyle(color: Colors.black87)),
+              const SizedBox(height: 8),
+            ],
+
+            // NOVO: Exibir Medicamentos em Uso Contínuo no Card
+            if (medicamentosUsoContinuo != null &&
+                medicamentosUsoContinuo.isNotEmpty) ...[
+              Row(
+                children: const [
+                  Icon(Icons.medication_outlined,
+                      size: 18, color: Colors.blueAccent),
+                  SizedBox(width: 6),
+                  Text('Medicamentos em Uso Contínuo:',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ],
+              ),
+              Text(medicamentosUsoContinuo,
+                  style: const TextStyle(color: Colors.black87)),
               const SizedBox(height: 8),
             ],
 
