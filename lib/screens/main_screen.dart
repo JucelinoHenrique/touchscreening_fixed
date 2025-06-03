@@ -832,7 +832,7 @@ class _MainScreenState extends State<MainScreen> {
                           color: Colors.green),
                       tooltip: 'Marcar como concluído',
                       onPressed: () async {
-                        await _patientService.markAsCompleted(docId);
+                        _showConfirmationDialog(docId, "Confirmar Registro", "Deseja finalizar esse registro?", "Confirmar", false);
                       },
                     ),
                     IconButton(
@@ -845,7 +845,7 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.redAccent),
-                      onPressed: () => _showDeleteConfirmationDialog(docId),
+                      onPressed: () => _showConfirmationDialog(docId,"Excluir Registro", "Deseja mesmo excluir esse registro?","Excluir", true),
                     ),
                   ],
                 ),
@@ -931,29 +931,33 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-
-  void _showDeleteConfirmationDialog(String docId) {
+  void _showConfirmationDialog(String docId, String title, String content, String textButton, bool choose) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Excluir Registro'),
-          content:
-              const Text('Você tem certeza que deseja excluir este registro?'),
+          title: Text(title),
+          content: Text(content),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancelar'),
             ),
             TextButton(
-              onPressed: () async {
+              onPressed:() async {
+                if(choose){
                 await FirebaseFirestore.instance
                     .collection('patient_records')
                     .doc(docId)
                     .delete();
                 Navigator.of(context).pop();
+              }
+                else {
+                    await _patientService.markAsCompleted(docId);
+                    Navigator.of(context).pop();
+              }
               },
-              child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+              child: Text(textButton, style: TextStyle(color: Colors.red)),
             ),
           ],
         );
