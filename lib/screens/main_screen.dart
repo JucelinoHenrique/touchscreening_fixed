@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -18,11 +19,36 @@ class _MainScreenState extends State<MainScreen> {
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
-  final TextEditingController symptomsController = TextEditingController();
+  final TextEditingController symptomsController =
+      TextEditingController(); // Corresponde a Situação/Queixa
+  final TextEditingController allergiesController = TextEditingController();
+  // NOVO: Controller para Medicamentos em Uso Contínuo
+  final TextEditingController medicamentosUsoContinuoController =
+      TextEditingController();
+  final TextEditingController weightController = TextEditingController();
+  final TextEditingController susCardController = TextEditingController();
+  final TextEditingController cpfRgController = TextEditingController();
+  final TextEditingController motherNameController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
+  final TextEditingController birthDateController = TextEditingController();
 
+  // Controllers para Sinais Vitais
+  final TextEditingController pressaoArterialSistolicaController =
+      TextEditingController();
+  final TextEditingController pressaoArterialDiastolicaController =
+      TextEditingController();
+  final TextEditingController frequenciaCardiacaController =
+      TextEditingController();
+  final TextEditingController saturacaoO2Controller = TextEditingController();
+  final TextEditingController temperaturaController = TextEditingController();
+  final TextEditingController frequenciaRespiratoriaController =
+      TextEditingController();
+  final TextEditingController horaSinaisVitaisController =
+      TextEditingController();
+
+  String? selectedSex;
+  String? selectedMaritalStatus;
   String? selectedPriority;
-  String? selectedPainOrigin;
-  double painLevel = 0;
   String? editingDocId;
 
   final PatientService _patientService = PatientService();
@@ -32,6 +58,24 @@ class _MainScreenState extends State<MainScreen> {
     nameController.dispose();
     ageController.dispose();
     symptomsController.dispose();
+    allergiesController.dispose();
+    // NOVO: Dispose do controller de Medicamentos
+    medicamentosUsoContinuoController.dispose();
+    weightController.dispose();
+    susCardController.dispose();
+    cpfRgController.dispose();
+    motherNameController.dispose();
+    addressController.dispose();
+    birthDateController.dispose();
+
+    pressaoArterialSistolicaController.dispose();
+    pressaoArterialDiastolicaController.dispose();
+    frequenciaCardiacaController.dispose();
+    saturacaoO2Controller.dispose();
+    temperaturaController.dispose();
+    frequenciaRespiratoriaController.dispose();
+    horaSinaisVitaisController.dispose();
+
     super.dispose();
   }
 
@@ -53,7 +97,7 @@ class _MainScreenState extends State<MainScreen> {
             const SizedBox(width: 10),
             Text(
               currentUser != null
-                  ? 'Olá, Enf. ${currentUser.email}'
+                  ? 'Olá, Enf. ${currentUser.displayName}'
                   : 'Olá, Enf.',
               style: const TextStyle(
                 fontSize: 19.0,
@@ -76,13 +120,23 @@ class _MainScreenState extends State<MainScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            const UserAccountsDrawerHeader(
-              accountName: Text('Enfermeira'),
-              accountEmail: Text('email@hospital.com'),
-              currentAccountPicture: CircleAvatar(
+            UserAccountsDrawerHeader(
+              accountName: Text(currentUser != null
+                  ? 'Enf. ${currentUser.displayName}'
+                  : 'Olá, Enf.'),
+              accountEmail:
+                  Text(currentUser != null ? ' ${currentUser.email}' : ''),
+              currentAccountPicture: const CircleAvatar(
                 backgroundImage: AssetImage('lib/assets/images/logo.png'),
               ),
-              decoration: BoxDecoration(color: Color(0xFFFF6C00)),
+              decoration: const BoxDecoration(color: Color(0xFFFF6C00)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('Atendimentos Finalizados'),
+              onTap: () {
+                Navigator.pushNamed(context, '/finished');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.logout),
@@ -113,11 +167,15 @@ class _MainScreenState extends State<MainScreen> {
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('patient_records')
+                    .where('isCompleted', isEqualTo: false)
+                    .orderBy('lastUpdate', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   } else if (snapshot.hasError) {
+                    print(
+                        "Erro no StreamBuilder MainScreen: ${snapshot.error} \nStack trace: ${snapshot.stackTrace}"); // Log do erro
                     return const Center(
                         child: Text('Erro ao carregar registros.'));
                   } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -134,12 +192,7 @@ class _MainScreenState extends State<MainScreen> {
                       final data = record.data() as Map<String, dynamic>;
                       return _buildPatientCard(
                         docId: record.id,
-                        name: data['name'],
-                        symptoms: (data['symptoms'] as String).split(','),
-                        lastUpdate: data['lastUpdate'],
-                        color: data['color'],
-                        painOrigin: data['painOrigin'],
-                        painLevel: (data['painLevel'] as num).toDouble(),
+                        data: data,
                       );
                     },
                   );
@@ -175,12 +228,201 @@ class _MainScreenState extends State<MainScreen> {
         ),
         const SizedBox(height: 10),
         TextField(
+          controller: birthDateController,
+          decoration: const InputDecoration(
+            labelText: 'Data de Nascimento (DD/MM/AAAA)',
+            border: OutlineInputBorder(),
+          ),
+          onTap: () async {
+            FocusScope.of(context)
+                .requestFocus(FocusNode()); // Para não abrir o teclado
+            DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(1900),
+                lastDate: DateTime.now());
+            if (pickedDate != null) {
+              birthDateController.text =
+                  DateFormat('dd/MM/yyyy').format(pickedDate);
+            }
+          },
+          readOnly: true,
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: selectedSex,
+          onChanged: (value) => setState(() => selectedSex = value),
+          decoration: const InputDecoration(
+            labelText: 'Sexo',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+            DropdownMenuItem(value: 'Feminino', child: Text('Feminino')),
+            DropdownMenuItem(value: 'Outro', child: Text('Outro'))
+          ],
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: selectedMaritalStatus,
+          onChanged: (value) => setState(() => selectedMaritalStatus = value),
+          decoration: const InputDecoration(
+            labelText: 'Estado Civil',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Solteiro(a)', child: Text('Solteiro(a)')),
+            DropdownMenuItem(value: 'Casado(a)', child: Text('Casado(a)')),
+            DropdownMenuItem(
+                value: 'Divorciado(a)', child: Text('Divorciado(a)')),
+            DropdownMenuItem(value: 'Viúvo(a)', child: Text('Viúvo(a)')),
+            DropdownMenuItem(
+                value: 'União Estável', child: Text('União Estável')),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: cpfRgController,
+          decoration: const InputDecoration(
+            labelText: 'RG ou CPF',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: susCardController,
+          decoration: const InputDecoration(
+            labelText: 'Cartão SUS',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: motherNameController,
+          decoration: const InputDecoration(
+            labelText: 'Nome da Mãe',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: addressController,
+          decoration: const InputDecoration(
+            labelText: 'Endereço (Rua, Nº, Bairro, Cidade)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
           controller: ageController,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
             labelText: 'Idade',
             border: OutlineInputBorder(),
           ),
+        ),
+        const SizedBox(height: 10),
+        ExpansionTile(
+          title: const Text('Sinais Vitais',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          initiallyExpanded: false,
+          childrenPadding: const EdgeInsets.all(10.0).copyWith(top: 0),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 10),
+          children: [
+            TextField(
+              controller: weightController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Peso (kg)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: pressaoArterialSistolicaController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'PA Sistólica (mmHg)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: pressaoArterialDiastolicaController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'PA Diastólica (mmHg)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: frequenciaCardiacaController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'FC (bpm)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: saturacaoO2Controller,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'SPO₂ (%)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: temperaturaController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Temp (°C)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: frequenciaRespiratoriaController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'FR (rpm)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: horaSinaisVitaisController,
+              decoration: const InputDecoration(
+                labelText: 'Hora da Aferição (HH:mm)',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.access_time),
+              ),
+              onTap: () async {
+                FocusScope.of(context).requestFocus(FocusNode());
+                TimeOfDay? pickedTime = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (pickedTime != null) {
+                  // ignore: use_build_context_synchronously
+                  horaSinaisVitaisController.text = pickedTime.format(context);
+                }
+              },
+              readOnly: true,
+            ),
+          ],
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
@@ -203,49 +445,31 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text('Origem da Dor:', style: TextStyle(fontSize: 16)),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 10.0,
-          runSpacing: 10.0,
-          children: [
-            _buildPainOriginButton(
-                Icons.face,
-                'Cabeça',
-                () => setState(() => selectedPainOrigin = 'Cabeça'),
-                selectedPainOrigin == 'Cabeça'),
-            _buildPainOriginButton(
-                Icons.accessibility,
-                'Peito',
-                () => setState(() => selectedPainOrigin = 'Peito'),
-                selectedPainOrigin == 'Peito'),
-            _buildPainOriginButton(
-                Icons.accessibility_new,
-                'Braço',
-                () => setState(() => selectedPainOrigin = 'Braço'),
-                selectedPainOrigin == 'Braço'),
-            _buildPainOriginButton(
-                Icons.directions_walk,
-                'Pernas',
-                () => setState(() => selectedPainOrigin = 'Pernas'),
-                selectedPainOrigin == 'Pernas'),
-          ],
+        TextField(
+          controller: allergiesController,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Alergias (Opcional)',
+            border: OutlineInputBorder(),
+          ),
         ),
         const SizedBox(height: 10),
-        Slider(
-          value: painLevel,
-          min: 0,
-          max: 5,
-          divisions: 5,
-          label: painLevel.round().toString(),
-          onChanged: (value) => setState(() => painLevel = value),
+        // NOVO: Campo para Medicamentos em Uso Contínuo
+        TextField(
+          controller: medicamentosUsoContinuoController,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Medicamentos em Uso Contínuo (Opcional)',
+            border: OutlineInputBorder(),
+            hintText: 'Ex: Losartana 50mg, AAS 100mg...',
+          ),
         ),
         const SizedBox(height: 10),
         TextField(
-          controller: symptomsController,
+          controller: symptomsController, // Situação/Queixa
           maxLines: 3,
           decoration: const InputDecoration(
-            labelText: 'Sintomas',
+            labelText: 'Situação / Queixa',
             border: OutlineInputBorder(),
           ),
         ),
@@ -253,63 +477,71 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildPainOriginButton(
-      IconData icon, String label, VoidCallback onTap, bool isSelected) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? Colors.orange : Colors.grey,
-                width: 2.0,
-              ),
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-            padding: const EdgeInsets.all(8.0),
-            child: Icon(
-              icon,
-              size: 40,
-              color: isSelected ? Colors.orange : Colors.black,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.orange : Colors.black,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _openPatientForm({Map<String, dynamic>? data}) async {
     if (data != null) {
-      nameController.text = data['name'];
-      ageController.text = data['age'].toString();
-      symptomsController.text = data['symptoms'];
-      selectedPriority = data['color'];
-      selectedPainOrigin = data['painOrigin'];
-      painLevel = data['painLevel']?.toDouble() ?? 0;
-      editingDocId = data['docId']; // 🔥 Corrigido: agora usamos docId
+      // Editando
+      editingDocId = data['docId'] as String?;
+      nameController.text = data['name'] ?? '';
+      ageController.text = data['age']?.toString() ?? '';
+      symptomsController.text = data['symptoms'] ?? '';
+      selectedPriority = data['color'] ?? '';
+      weightController.text = data['weight']?.toString() ?? '';
+      allergiesController.text = data['allergies'] ?? '';
+      // NOVO: Carregar medicamentos em uso
+      medicamentosUsoContinuoController.text =
+          data['medicamentosUsoContinuo'] ?? '';
+      cpfRgController.text = data['cpfRg'] ?? '';
+      susCardController.text = data['susCard'] ?? '';
+      birthDateController.text = data['birthDate'] ?? '';
+      selectedSex = data['sex'];
+      selectedMaritalStatus = data['maritalStatus'];
+      motherNameController.text = data['motherName'] ?? '';
+      addressController.text = data['address'] ?? '';
+
+      pressaoArterialSistolicaController.text =
+          data['pressaoSistolica']?.toString() ?? '';
+      pressaoArterialDiastolicaController.text =
+          data['pressaoDiastolica']?.toString() ?? '';
+      frequenciaCardiacaController.text =
+          data['frequenciaCardiaca']?.toString() ?? '';
+      saturacaoO2Controller.text = data['saturacaoO2']?.toString() ?? '';
+      temperaturaController.text = data['temperatura']?.toString() ?? '';
+      frequenciaRespiratoriaController.text =
+          data['frequenciaRespiratoria']?.toString() ?? '';
+      horaSinaisVitaisController.text = data['horaSinaisVitais'] ?? '';
+      setState(() {});
     } else {
+      editingDocId = null;
       nameController.clear();
       ageController.clear();
       symptomsController.clear();
-      selectedPriority = null;
-      selectedPainOrigin = null;
-      painLevel = 0;
-      editingDocId = null;
+      weightController.clear();
+      allergiesController.clear();
+      medicamentosUsoContinuoController.clear();
+      cpfRgController.clear();
+      susCardController.clear();
+      birthDateController.clear();
+      motherNameController.clear();
+      addressController.clear();
+
+      pressaoArterialSistolicaController.clear();
+      pressaoArterialDiastolicaController.clear();
+      frequenciaCardiacaController.clear();
+      saturacaoO2Controller.clear();
+      temperaturaController.clear();
+      frequenciaRespiratoriaController.clear();
+      horaSinaisVitaisController.clear();
+
+      setState(() {
+        selectedSex = null;
+        selectedMaritalStatus = null;
+        selectedPriority = null;
+      });
     }
 
     final flutterTts = FlutterTts();
     await flutterTts.speak(
-        'Formulário de anamnese aberto. Preencha os campos obrigatórios.');
+        'Formulário de paciente aberto. Preencha os campos necessários.');
 
     showModalBottomSheet(
       context: context,
@@ -335,32 +567,157 @@ class _MainScreenState extends State<MainScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-                // Campos do formulário
                 _buildFormFields(),
                 const SizedBox(height: 20),
-                // Botão de salvar
                 ElevatedButton(
                   onPressed: () async {
+                    // Validação básica (Nome e Prioridade)
                     if (nameController.text.isEmpty ||
-                        ageController.text.isEmpty ||
-                        selectedPriority == null ||
-                        selectedPainOrigin == null) {
-                      _showErrorDialog('Todos os campos são obrigatórios.');
+                        selectedPriority == null) {
+                      _showErrorDialog(
+                          'Nome do paciente e Prioridade são obrigatórios.');
                       return;
                     }
+
+                    // --- VALIDAÇÃO DOS CAMPOS DOUBLE OBRIGATÓRIOS ---
+
+                    // Peso (double obrigatório)
+                    if (weightController.text.isEmpty) {
+                      _showErrorDialog('O campo "Peso (kg)" é obrigatório.');
+                      return;
+                    }
+                    final double? weightValueParsed = double.tryParse(
+                        weightController.text.replaceAll(',', '.'));
+                    if (weightValueParsed == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "Peso (kg)". Use números (ex: 70.5).');
+                      return;
+                    }
+
+                    // Temperatura (double obrigatório)
+                    if (temperaturaController.text.isEmpty) {
+                      _showErrorDialog('O campo "Temp (°C)" é obrigatório.');
+                      return;
+                    }
+                    final double? temperaturaValueParsed = double.tryParse(
+                        temperaturaController.text.replaceAll(',', '.'));
+                    if (temperaturaValueParsed == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "Temp (°C)". Use números (ex: 36.5).');
+                      return;
+                    }
+
+                    // --- VALIDAÇÃO DOS CAMPOS INT OBRIGATÓRIOS (SINAIS VITAIS) ---
+                    // Pressão Arterial Sistólica
+                    if (pressaoArterialSistolicaController.text.isEmpty) {
+                      _showErrorDialog('O campo "PA Sistólica" é obrigatório.');
+                      return;
+                    }
+                    final int? paSistolicaValue =
+                        int.tryParse(pressaoArterialSistolicaController.text);
+                    if (paSistolicaValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "PA Sistólica". Use números inteiros.');
+                      return;
+                    }
+
+                    // Pressão Arterial Diastólica
+                    if (pressaoArterialDiastolicaController.text.isEmpty) {
+                      _showErrorDialog(
+                          'O campo "PA Diastólica" é obrigatório.');
+                      return;
+                    }
+                    final int? paDiastolicaValue =
+                        int.tryParse(pressaoArterialDiastolicaController.text);
+                    if (paDiastolicaValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "PA Diastólica". Use números inteiros.');
+                      return;
+                    }
+
+                    // Frequência Cardíaca
+                    if (frequenciaCardiacaController.text.isEmpty) {
+                      _showErrorDialog('O campo "FC (bpm)" é obrigatório.');
+                      return;
+                    }
+                    final int? fcValue =
+                        int.tryParse(frequenciaCardiacaController.text);
+                    if (fcValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "FC (bpm)". Use números inteiros.');
+                      return;
+                    }
+
+                    // Saturação de O₂
+                    if (saturacaoO2Controller.text.isEmpty) {
+                      _showErrorDialog('O campo "SPO₂ (%)" é obrigatório.');
+                      return;
+                    }
+                    final int? spo2Value =
+                        int.tryParse(saturacaoO2Controller.text);
+                    if (spo2Value == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "SPO₂ (%)". Use números inteiros.');
+                      return;
+                    }
+
+                    // Frequência Respiratória
+                    if (frequenciaRespiratoriaController.text.isEmpty) {
+                      _showErrorDialog('O campo "FR (rpm)" é obrigatório.');
+                      return;
+                    }
+                    final int? frValue =
+                        int.tryParse(frequenciaRespiratoriaController.text);
+                    if (frValue == null) {
+                      _showErrorDialog(
+                          'Valor inválido para "FR (rpm)". Use números inteiros.');
+                      return;
+                    }
+
+                    // Hora da Aferição dos Sinais Vitais (String obrigatória)
+                    if (horaSinaisVitaisController.text.isEmpty) {
+                      _showErrorDialog(
+                          'O campo "Hora da Aferição" dos sinais vitais é obrigatório.');
+                      return;
+                    }
+
+                    // --- FIM DA VALIDAÇÃO DOS SINAIS VITAIS ---
+
+                    int? ageValue = int.tryParse(
+                        ageController.text); // Idade continua opcional
 
                     await _patientService.savePatient(
                       docId: editingDocId,
                       name: nameController.text,
-                      age: int.tryParse(ageController.text) ?? 0,
+                      age: ageValue,
                       symptoms: symptomsController.text,
                       color: selectedPriority!,
-                      painOrigin: selectedPainOrigin!,
-                      painLevel: painLevel,
+                      isCompleted: false,
+                      allergies: allergiesController.text.isNotEmpty
+                          ? allergiesController.text
+                          : null,
+                      medicamentosUsoContinuo:
+                          medicamentosUsoContinuoController.text.isNotEmpty
+                              ? medicamentosUsoContinuoController.text
+                              : null,
+                      cpfRg: cpfRgController.text,
+                      susCard: susCardController.text,
+                      birthDate: birthDateController.text,
+                      sex: selectedSex ?? '',
+                      maritalStatus: selectedMaritalStatus ?? '',
+                      motherName: motherNameController.text,
+                      address: addressController.text,
+                      weight: weightValueParsed,
+                      pressaoSistolica: paSistolicaValue,
+                      pressaoDiastolica: paDiastolicaValue,
+                      frequenciaCardiaca: fcValue,
+                      saturacaoO2: spo2Value,
+                      temperatura: temperaturaValueParsed,
+                      frequenciaRespiratoria: frValue,
+                      horaSinaisVitais: horaSinaisVitaisController.text,
                     );
 
-                    Navigator.pop(
-                        context); // Fecha o bottom sheet depois de salvar
+                    Navigator.pop(context);
                   },
                   child: const Text('Salvar'),
                 ),
@@ -377,7 +734,7 @@ class _MainScreenState extends State<MainScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Erro'),
+          title: const Text('Erro de Validação'),
           content: Text(message),
           actions: [
             TextButton(
@@ -394,26 +751,47 @@ class _MainScreenState extends State<MainScreen> {
 
   Widget _buildPatientCard({
     required String docId,
-    required String name,
-    required List<String> symptoms,
-    required String lastUpdate,
-    required String color,
-    required String painOrigin,
-    required double painLevel,
+    required Map<String, dynamic> data,
   }) {
-    final colorMap = {
-      'Vermelho': Colors.red,
-      'Laranja': Colors.orange,
-      'Amarelo': Colors.yellow,
-      'Verde': Colors.green,
-      'Azul': Colors.blue,
-    };
+    final name = data['name'] as String? ?? 'Nome não informado';
+    final age = data['age'] as int?;
+    final symptomsRaw = data['symptoms'] as String?;
+    final symptomsList = (symptomsRaw?.isNotEmpty ?? false)
+        ? symptomsRaw!.split(',')
+        : <String>[];
+    final lastUpdate = data['lastUpdate'] as String? ?? 'Data não informada';
+    final color = data['color'] as String? ?? 'Azul';
+    final weight = data['weight']?.toString();
+    final allergies = data['allergies'] as String?;
+    // NOVO: Extrair medicamentos em uso
+    final medicamentosUsoContinuo = data['medicamentosUsoContinuo'] as String?;
+    final cpfRg = data['cpfRg'] as String? ?? '-';
+    final susCard = data['susCard'] as String? ?? '-';
 
-    final cardColor = colorMap[color] ?? Colors.grey;
+    final paSistolica = data['pressaoSistolica']?.toString();
+    final paDiastolica = data['pressaoDiastolica']?.toString();
+    final fc = data['frequenciaCardiaca']?.toString();
+    final spo2 = data['saturacaoO2']?.toString();
+    final temp = data['temperatura']?.toString();
+    final fr = data['frequenciaRespiratoria']?.toString();
+    final horaSinais = data['horaSinaisVitais'] as String?;
+
+    final colorMap = {
+      'Vermelho': Colors.red.shade100,
+      'Laranja': Colors.orange.shade100,
+      'Amarelo': Colors.yellow.shade100,
+      'Verde': Colors.green.shade100,
+      'Azul': Colors.blue.shade100,
+    };
+    final cardColor = colorMap[color] ?? Colors.grey.shade200;
 
     return Card(
       color: cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -422,70 +800,164 @@ class _MainScreenState extends State<MainScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87)),
+                      if (age != null)
+                        Text('$age anos',
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.black54)),
+                      const SizedBox(height: 4),
+                      if (cpfRg != '-')
+                        Text('CPF/RG: $cpfRg',
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black87)),
+                      if (susCard != '-')
+                        Text('SUS: $susCard',
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black87)),
+                    ],
+                  ),
+                ),
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        _openPatientForm(data: {
-                          'docId': docId,
-                          'name': name,
-                          'symptoms': symptoms.join(','),
-                          'lastUpdate': lastUpdate,
-                          'color': color,
-                          'painOrigin': painOrigin,
-                          'painLevel': painLevel,
-                        });
+                      icon: const Icon(Icons.check_circle_outline,
+                          color: Colors.green),
+                      tooltip: 'Marcar como concluído',
+                      onPressed: () async {
+                        _showConfirmationDialog(docId, "Confirmar Registro", "Deseja finalizar esse registro?", "Confirmar", false);
                       },
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => _showDeleteConfirmationDialog(docId),
+                      icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                      onPressed: () {
+                        final editData = Map<String, dynamic>.from(data);
+                        editData['docId'] = docId;
+                        _openPatientForm(data: editData);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                      onPressed: () => _showConfirmationDialog(docId,"Excluir Registro", "Deseja mesmo excluir esse registro?","Excluir", true),
                     ),
                   ],
                 ),
               ],
             ),
+            const Divider(thickness: 1),
             const SizedBox(height: 8),
-            ...symptoms.map((s) => Text('• $s')).toList(),
-            const SizedBox(height: 8),
-            Text('Origem da Dor: $painOrigin'),
-            const SizedBox(height: 8),
-            Text('Nível da Dor: ${painLevel.toInt()} de 5'),
-            const SizedBox(height: 8),
+            if (horaSinais != null && horaSinais.isNotEmpty)
+              Text('Sinais Vitais ($horaSinais):',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 14)),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 4.0,
+              children: [
+                if (paSistolica != null && paDiastolica != null)
+                  Chip(label: Text('PA: $paSistolica/$paDiastolica mmHg')),
+                if (fc != null) Chip(label: Text('FC: $fc bpm')),
+                if (spo2 != null) Chip(label: Text('SPO₂: $spo2 %')),
+                if (temp != null) Chip(label: Text('Temp: $temp °C')),
+                if (fr != null) Chip(label: Text('FR: $fr rpm')),
+                if (weight != null && weight.isNotEmpty)
+                  Chip(
+                      label: Text(
+                          'Peso: $weight kg')), // Adicionado cheque de isNotEmpty
+              ],
+            ),
+            if (horaSinais != null && horaSinais.isNotEmpty)
+              const SizedBox(height: 8),
+
+            if (symptomsList.isNotEmpty) ...[
+              const Text('Situação/Queixa:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ...symptomsList
+                  .map((s) => Text('• $s',
+                      style: const TextStyle(color: Colors.black87)))
+                  .toList(),
+              const SizedBox(height: 8),
+            ],
+
+            if (allergies != null && allergies.isNotEmpty) ...[
+              Row(
+                children: const [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 18, color: Colors.orangeAccent),
+                  SizedBox(width: 6),
+                  Text('Alergias:',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ],
+              ),
+              Text(allergies, style: const TextStyle(color: Colors.black87)),
+              const SizedBox(height: 8),
+            ],
+
+            // NOVO: Exibir Medicamentos em Uso Contínuo no Card
+            if (medicamentosUsoContinuo != null &&
+                medicamentosUsoContinuo.isNotEmpty) ...[
+              Row(
+                children: const [
+                  Icon(Icons.medication_outlined,
+                      size: 18, color: Colors.blueAccent),
+                  SizedBox(width: 6),
+                  Text('Medicamentos em Uso Contínuo:',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ],
+              ),
+              Text(medicamentosUsoContinuo,
+                  style: const TextStyle(color: Colors.black87)),
+              const SizedBox(height: 8),
+            ],
+
+            Text('Prioridade: $color',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black54)),
             Text('Última Atualização: $lastUpdate',
-                style: TextStyle(color: Colors.black.withOpacity(0.6))),
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
           ],
         ),
       ),
     );
   }
-
-  void _showDeleteConfirmationDialog(String docId) {
+  void _showConfirmationDialog(String docId, String title, String content, String textButton, bool choose) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Excluir Registro'),
-          content:
-              const Text('Você tem certeza que deseja excluir este registro?'),
+          title: Text(title),
+          content: Text(content),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancelar'),
             ),
             TextButton(
-              onPressed: () async {
+              onPressed:() async {
+                if(choose){
                 await FirebaseFirestore.instance
                     .collection('patient_records')
                     .doc(docId)
                     .delete();
                 Navigator.of(context).pop();
+              }
+                else {
+                    await _patientService.markAsCompleted(docId);
+                    Navigator.of(context).pop();
+              }
               },
-              child: const Text('Excluir'),
+              child: Text(textButton, style: TextStyle(color: Colors.red)),
             ),
           ],
         );

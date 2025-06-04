@@ -43,6 +43,7 @@ class CadastroScreenState extends State<CadastroScreen> {
           await _authService.registerWithEmailAndPassword(email, password);
 
       if (userCredential != null) {
+        await userCredential.user!.updateDisplayName(name);
         await _userDatabase.saveUserData(userCredential.user!.uid, name);
 
         ScaffoldMessenger.of(context).showSnackBar(

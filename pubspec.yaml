@@ -10,9 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-   
-  
-  flutter_tts: ^3.5.0
+  intl: ^0.20.2
+  flutter_tts: ^4.2.2
+  pdf: ^3.10.1
+  printing: ^5.11.0
  
   # Ícones estilo Cupertino para iOS
   cupertino_icons: ^1.0.8
@@ -21,9 +22,9 @@ dependencies:
   provider: ^6.0.5
 
   # banco de dados
-  firebase_core: ^2.27.0
-  firebase_auth: ^4.18.0
-  cloud_firestore: ^4.15.0
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.8
 
 
   # Manipulação de caminhos de arquivos
@@ -33,7 +34,7 @@ dependencies:
   shared_preferences: ^2.3.5
 
   # Validação de formulários
-  flutter_form_builder: ^9.7.0
+  flutter_form_builder: ^10.0.1
   google_sign_in: ^6.3.0
 
 dev_dependencies:
@@ -41,7 +42,7 @@ dev_dependencies:
     sdk: flutter
 
   # Regras de lint recomendadas
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
   # Build runner para geração de código
   build_runner: ^2.4.6
@@ -53,5 +54,7 @@ flutter:
   assets:
     - lib/assets/images/LOGO2.png
     - lib/assets/images/LOGO4.png
+    - lib/assets/images/LOGO5.png
     - lib/assets/images/LOGO1.png
     - lib/assets/images/logo.png
+    - lib/assets/fonts/Roboto-Medium.ttf
