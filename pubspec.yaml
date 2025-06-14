@@ -36,6 +36,8 @@ dependencies:
   # Validação de formulários
   flutter_form_builder: ^10.0.1
   google_sign_in: ^6.3.0
+  connectivity_plus: ^6.1.4
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -54,7 +56,6 @@ flutter:
   assets:
     - lib/assets/images/LOGO2.png
     - lib/assets/images/LOGO4.png
-    - lib/assets/images/LOGO5.png
+   # - lib/assets/images/LOGO5.png
     - lib/assets/images/LOGO1.png
     - lib/assets/images/logo.png
-    - lib/assets/fonts/Roboto-Medium.ttf
