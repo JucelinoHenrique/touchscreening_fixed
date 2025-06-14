@@ -19,10 +19,8 @@ class _MainScreenState extends State<MainScreen> {
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
-  final TextEditingController symptomsController =
-      TextEditingController(); // Corresponde a Situação/Queixa
+  final TextEditingController symptomsController = TextEditingController();
   final TextEditingController allergiesController = TextEditingController();
-  // NOVO: Controller para Medicamentos em Uso Contínuo
   final TextEditingController medicamentosUsoContinuoController =
       TextEditingController();
   final TextEditingController weightController = TextEditingController();
@@ -59,7 +57,6 @@ class _MainScreenState extends State<MainScreen> {
     ageController.dispose();
     symptomsController.dispose();
     allergiesController.dispose();
-    // NOVO: Dispose do controller de Medicamentos
     medicamentosUsoContinuoController.dispose();
     weightController.dispose();
     susCardController.dispose();
@@ -97,7 +94,7 @@ class _MainScreenState extends State<MainScreen> {
             const SizedBox(width: 10),
             Text(
               currentUser != null
-                  ? 'Olá, Enf. ${currentUser.displayName}'
+                  ? 'Olá, Enf. ${currentUser.displayName ?? currentUser.email ?? 'Usuário'}'
                   : 'Olá, Enf.',
               style: const TextStyle(
                 fontSize: 19.0,
@@ -122,10 +119,9 @@ class _MainScreenState extends State<MainScreen> {
           children: <Widget>[
             UserAccountsDrawerHeader(
               accountName: Text(currentUser != null
-                  ? 'Enf. ${currentUser.displayName}'
+                  ? 'Enf. ${currentUser.displayName ?? 'Sem Nome'}'
                   : 'Olá, Enf.'),
-              accountEmail:
-                  Text(currentUser != null ? ' ${currentUser.email}' : ''),
+              accountEmail: Text(currentUser?.email ?? ''),
               currentAccountPicture: const CircleAvatar(
                 backgroundImage: AssetImage('lib/assets/images/logo.png'),
               ),
@@ -215,6 +211,9 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  // O restante do código da classe (buildFormFields, openPatientForm, etc.) permanece o mesmo.
+  // Vou incluí-lo para que o arquivo fique completo.
+
   Widget _buildFormFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,8 +233,7 @@ class _MainScreenState extends State<MainScreen> {
             border: OutlineInputBorder(),
           ),
           onTap: () async {
-            FocusScope.of(context)
-                .requestFocus(FocusNode()); // Para não abrir o teclado
+            FocusScope.of(context).requestFocus(FocusNode());
             DateTime? pickedDate = await showDatePicker(
                 context: context,
                 initialDate: DateTime.now(),
@@ -323,9 +321,9 @@ class _MainScreenState extends State<MainScreen> {
         ),
         const SizedBox(height: 10),
         ExpansionTile(
-          title: const Text('Sinais Vitais',
+          title: const Text('Sinais Vitais (Obrigatório)',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          initiallyExpanded: false,
+          initiallyExpanded: true,
           childrenPadding: const EdgeInsets.all(10.0).copyWith(top: 0),
           tilePadding: const EdgeInsets.symmetric(horizontal: 10),
           children: [
@@ -334,7 +332,7 @@ class _MainScreenState extends State<MainScreen> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Peso (kg)',
+                labelText: 'Peso (kg) *',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -346,7 +344,7 @@ class _MainScreenState extends State<MainScreen> {
                     controller: pressaoArterialSistolicaController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'PA Sistólica (mmHg)',
+                      labelText: 'PA Sistólica (mmHg) *',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -357,7 +355,7 @@ class _MainScreenState extends State<MainScreen> {
                     controller: pressaoArterialDiastolicaController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'PA Diastólica (mmHg)',
+                      labelText: 'PA Diastólica (mmHg) *',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -369,7 +367,7 @@ class _MainScreenState extends State<MainScreen> {
               controller: frequenciaCardiacaController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'FC (bpm)',
+                labelText: 'FC (bpm) *',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -378,7 +376,7 @@ class _MainScreenState extends State<MainScreen> {
               controller: saturacaoO2Controller,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'SPO₂ (%)',
+                labelText: 'SPO₂ (%) *',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -388,7 +386,7 @@ class _MainScreenState extends State<MainScreen> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
-                labelText: 'Temp (°C)',
+                labelText: 'Temp (°C) *',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -397,7 +395,7 @@ class _MainScreenState extends State<MainScreen> {
               controller: frequenciaRespiratoriaController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'FR (rpm)',
+                labelText: 'FR (rpm) *',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -405,7 +403,7 @@ class _MainScreenState extends State<MainScreen> {
             TextField(
               controller: horaSinaisVitaisController,
               decoration: const InputDecoration(
-                labelText: 'Hora da Aferição (HH:mm)',
+                labelText: 'Hora da Aferição (HH:mm) *',
                 border: OutlineInputBorder(),
                 suffixIcon: Icon(Icons.access_time),
               ),
@@ -440,7 +438,7 @@ class _MainScreenState extends State<MainScreen> {
           ],
           onChanged: (value) => setState(() => selectedPriority = value),
           decoration: const InputDecoration(
-            labelText: 'Prioridade (Manchester)',
+            labelText: 'Prioridade (Manchester) *',
             border: OutlineInputBorder(),
           ),
         ),
@@ -454,7 +452,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        // NOVO: Campo para Medicamentos em Uso Contínuo
         TextField(
           controller: medicamentosUsoContinuoController,
           maxLines: 3,
@@ -466,7 +463,7 @@ class _MainScreenState extends State<MainScreen> {
         ),
         const SizedBox(height: 10),
         TextField(
-          controller: symptomsController, // Situação/Queixa
+          controller: symptomsController,
           maxLines: 3,
           decoration: const InputDecoration(
             labelText: 'Situação / Queixa',
@@ -487,7 +484,6 @@ class _MainScreenState extends State<MainScreen> {
       selectedPriority = data['color'] ?? '';
       weightController.text = data['weight']?.toString() ?? '';
       allergiesController.text = data['allergies'] ?? '';
-      // NOVO: Carregar medicamentos em uso
       medicamentosUsoContinuoController.text =
           data['medicamentosUsoContinuo'] ?? '';
       cpfRgController.text = data['cpfRg'] ?? '';
@@ -511,6 +507,7 @@ class _MainScreenState extends State<MainScreen> {
       horaSinaisVitaisController.text = data['horaSinaisVitais'] ?? '';
       setState(() {});
     } else {
+      // Adicionando novo
       editingDocId = null;
       nameController.clear();
       ageController.clear();
@@ -571,17 +568,17 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () async {
-                    // Validação básica (Nome e Prioridade)
-                    if (nameController.text.isEmpty ||
-                        selectedPriority == null) {
+                    // Validações... (como na versão anterior)
+                    if (nameController.text.isEmpty) {
                       _showErrorDialog(
-                          'Nome do paciente e Prioridade são obrigatórios.');
+                          'O campo "Nome do Paciente" é obrigatório.');
                       return;
                     }
-
-                    // --- VALIDAÇÃO DOS CAMPOS DOUBLE OBRIGATÓRIOS ---
-
-                    // Peso (double obrigatório)
+                    if (selectedPriority == null) {
+                      _showErrorDialog(
+                          'O campo "Prioridade (Manchester)" é obrigatório.');
+                      return;
+                    }
                     if (weightController.text.isEmpty) {
                       _showErrorDialog('O campo "Peso (kg)" é obrigatório.');
                       return;
@@ -593,8 +590,6 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "Peso (kg)". Use números (ex: 70.5).');
                       return;
                     }
-
-                    // Temperatura (double obrigatório)
                     if (temperaturaController.text.isEmpty) {
                       _showErrorDialog('O campo "Temp (°C)" é obrigatório.');
                       return;
@@ -606,9 +601,6 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "Temp (°C)". Use números (ex: 36.5).');
                       return;
                     }
-
-                    // --- VALIDAÇÃO DOS CAMPOS INT OBRIGATÓRIOS (SINAIS VITAIS) ---
-                    // Pressão Arterial Sistólica
                     if (pressaoArterialSistolicaController.text.isEmpty) {
                       _showErrorDialog('O campo "PA Sistólica" é obrigatório.');
                       return;
@@ -620,8 +612,6 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "PA Sistólica". Use números inteiros.');
                       return;
                     }
-
-                    // Pressão Arterial Diastólica
                     if (pressaoArterialDiastolicaController.text.isEmpty) {
                       _showErrorDialog(
                           'O campo "PA Diastólica" é obrigatório.');
@@ -634,8 +624,6 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "PA Diastólica". Use números inteiros.');
                       return;
                     }
-
-                    // Frequência Cardíaca
                     if (frequenciaCardiacaController.text.isEmpty) {
                       _showErrorDialog('O campo "FC (bpm)" é obrigatório.');
                       return;
@@ -647,8 +635,6 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "FC (bpm)". Use números inteiros.');
                       return;
                     }
-
-                    // Saturação de O₂
                     if (saturacaoO2Controller.text.isEmpty) {
                       _showErrorDialog('O campo "SPO₂ (%)" é obrigatório.');
                       return;
@@ -660,8 +646,6 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "SPO₂ (%)". Use números inteiros.');
                       return;
                     }
-
-                    // Frequência Respiratória
                     if (frequenciaRespiratoriaController.text.isEmpty) {
                       _showErrorDialog('O campo "FR (rpm)" é obrigatório.');
                       return;
@@ -673,18 +657,13 @@ class _MainScreenState extends State<MainScreen> {
                           'Valor inválido para "FR (rpm)". Use números inteiros.');
                       return;
                     }
-
-                    // Hora da Aferição dos Sinais Vitais (String obrigatória)
                     if (horaSinaisVitaisController.text.isEmpty) {
                       _showErrorDialog(
                           'O campo "Hora da Aferição" dos sinais vitais é obrigatório.');
                       return;
                     }
 
-                    // --- FIM DA VALIDAÇÃO DOS SINAIS VITAIS ---
-
-                    int? ageValue = int.tryParse(
-                        ageController.text); // Idade continua opcional
+                    int? ageValue = int.tryParse(ageController.text);
 
                     await _patientService.savePatient(
                       docId: editingDocId,
@@ -763,7 +742,6 @@ class _MainScreenState extends State<MainScreen> {
     final color = data['color'] as String? ?? 'Azul';
     final weight = data['weight']?.toString();
     final allergies = data['allergies'] as String?;
-    // NOVO: Extrair medicamentos em uso
     final medicamentosUsoContinuo = data['medicamentosUsoContinuo'] as String?;
     final cpfRg = data['cpfRg'] as String? ?? '-';
     final susCard = data['susCard'] as String? ?? '-';
@@ -832,7 +810,12 @@ class _MainScreenState extends State<MainScreen> {
                           color: Colors.green),
                       tooltip: 'Marcar como concluído',
                       onPressed: () async {
-                        _showConfirmationDialog(docId, "Confirmar Registro", "Deseja finalizar esse registro?", "Confirmar", false);
+                        _showConfirmationDialog(
+                            docId,
+                            "Confirmar Registro",
+                            "Deseja finalizar esse registro?",
+                            "Confirmar",
+                            false);
                       },
                     ),
                     IconButton(
@@ -845,7 +828,12 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, color: Colors.redAccent),
-                      onPressed: () => _showConfirmationDialog(docId,"Excluir Registro", "Deseja mesmo excluir esse registro?","Excluir", true),
+                      onPressed: () => _showConfirmationDialog(
+                          docId,
+                          "Excluir Registro",
+                          "Deseja mesmo excluir esse registro?",
+                          "Excluir",
+                          true),
                     ),
                   ],
                 ),
@@ -868,14 +856,11 @@ class _MainScreenState extends State<MainScreen> {
                 if (temp != null) Chip(label: Text('Temp: $temp °C')),
                 if (fr != null) Chip(label: Text('FR: $fr rpm')),
                 if (weight != null && weight.isNotEmpty)
-                  Chip(
-                      label: Text(
-                          'Peso: $weight kg')), // Adicionado cheque de isNotEmpty
+                  Chip(label: Text('Peso: $weight kg')),
               ],
             ),
             if (horaSinais != null && horaSinais.isNotEmpty)
               const SizedBox(height: 8),
-
             if (symptomsList.isNotEmpty) ...[
               const Text('Situação/Queixa:',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -885,7 +870,6 @@ class _MainScreenState extends State<MainScreen> {
                   .toList(),
               const SizedBox(height: 8),
             ],
-
             if (allergies != null && allergies.isNotEmpty) ...[
               Row(
                 children: const [
@@ -900,8 +884,6 @@ class _MainScreenState extends State<MainScreen> {
               Text(allergies, style: const TextStyle(color: Colors.black87)),
               const SizedBox(height: 8),
             ],
-
-            // NOVO: Exibir Medicamentos em Uso Contínuo no Card
             if (medicamentosUsoContinuo != null &&
                 medicamentosUsoContinuo.isNotEmpty) ...[
               Row(
@@ -918,7 +900,6 @@ class _MainScreenState extends State<MainScreen> {
                   style: const TextStyle(color: Colors.black87)),
               const SizedBox(height: 8),
             ],
-
             Text('Prioridade: $color',
                 style: TextStyle(
                     fontSize: 12,
@@ -931,7 +912,9 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
-  void _showConfirmationDialog(String docId, String title, String content, String textButton, bool choose) {
+
+  void _showConfirmationDialog(String docId, String title, String content,
+      String textButton, bool choose) {
     showDialog(
       context: context,
       builder: (context) {
@@ -944,18 +927,17 @@ class _MainScreenState extends State<MainScreen> {
               child: const Text('Cancelar'),
             ),
             TextButton(
-              onPressed:() async {
-                if(choose){
-                await FirebaseFirestore.instance
-                    .collection('patient_records')
-                    .doc(docId)
-                    .delete();
-                Navigator.of(context).pop();
-              }
-                else {
-                    await _patientService.markAsCompleted(docId);
-                    Navigator.of(context).pop();
-              }
+              onPressed: () async {
+                if (choose) {
+                  await FirebaseFirestore.instance
+                      .collection('patient_records')
+                      .doc(docId)
+                      .delete();
+                  Navigator.of(context).pop();
+                } else {
+                  await _patientService.markAsCompleted(docId);
+                  Navigator.of(context).pop();
+                }
               },
               child: Text(textButton, style: TextStyle(color: Colors.red)),
             ),

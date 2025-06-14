@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:touchscreening_fixed/screens/cadastro_screen.dart';
 import '../backend/auth_service.dart';
+// ADICIONE ESTE IMPORT para a WelcomeScreen
+import './welcome_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,7 +57,10 @@ class LoginScreenState extends State<LoginScreen> {
       if (userCredential != null) {
         _speak('Login realizado com sucesso.');
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/welcome');
+          // CORREÇÃO AQUI: Trocado pushReplacementNamed por pushReplacement
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          );
         }
       } else {
         _showSnackBar('Usuário ou senha incorretos.');
@@ -64,9 +70,11 @@ class LoginScreenState extends State<LoginScreen> {
       _showSnackBar('Erro ao fazer login: $e');
       _speak('Ocorreu um erro ao tentar realizar o login.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -80,23 +88,30 @@ class LoginScreenState extends State<LoginScreen> {
       if (userCredential != null) {
         _speak('Login com Google realizado com sucesso.');
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/welcome');
+          // CORREÇÃO AQUI: Trocado pushReplacementNamed por pushReplacement
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          );
         }
       }
     } catch (e) {
       _showSnackBar('Erro ao fazer login com Google: $e');
       _speak('Ocorreu um erro ao tentar realizar o login com o Google.');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   @override
@@ -140,7 +155,7 @@ class LoginScreenState extends State<LoginScreen> {
               ),
               style: const TextStyle(color: Colors.white),
               onChanged: (value) {
-                _speak('Campo e-mail preenchido: $value');
+                // _speak('Campo e-mail preenchido: $value'); // Comentado para não falar a cada letra
               },
             ),
             const SizedBox(height: 10),
@@ -160,12 +175,14 @@ class LoginScreenState extends State<LoginScreen> {
               ),
               style: const TextStyle(color: Colors.white),
               onChanged: (value) {
-                _speak('Campo senha preenchido.');
+                // _speak('Campo senha preenchido.'); // Comentado para não falar a cada letra
               },
             ),
             const SizedBox(height: 20),
             _isLoading
-                ? const CircularProgressIndicator()
+                ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
                 : Column(
                     children: [
                       ElevatedButton(
@@ -192,8 +209,9 @@ class LoginScreenState extends State<LoginScreen> {
                           _speak('Tentando realizar login com o Google.');
                           _loginWithGoogle();
                         },
-                        icon: const Icon(Icons.login),
-                        label: const Text('login com Google'),
+                        icon: const Icon(Icons
+                            .login), // Ícone genérico, pode ser trocado por um do Google
+                        label: const Text('Login com Google'),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: const Color(0xFFFF6C00),
                           backgroundColor: Colors.white,
@@ -212,7 +230,11 @@ class LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: () {
                 _speak('Navegando para a tela de cadastro.');
-                Navigator.pushNamed(context, '/cadastro');
+                // Usando a navegação direta aqui também por consistência
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (context) => const CadastroScreen()),
+                );
               },
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,

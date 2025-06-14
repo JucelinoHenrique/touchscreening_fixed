@@ -22,61 +22,62 @@ class CadastroScreenState extends State<CadastroScreen> {
   bool _isLoading = false;
 
   Future<void> _submitData() async {
+    // Validações básicas
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
+      _showSnackBar('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
     final String name = _nameController.text.trim();
     final String email = _emailController.text.trim();
     final String password = _passwordController.text.trim();
     final String confirmPassword = _confirmpasswordController.text.trim();
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('As senhas não correspondem!')),
-      );
+      _showSnackBar('As senhas não correspondem!');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final userCredential =
           await _authService.registerWithEmailAndPassword(email, password);
 
-      if (userCredential != null) {
+      if (userCredential != null && userCredential.user != null) {
+        // Atualiza o nome de exibição no Firebase Auth
         await userCredential.user!.updateDisplayName(name);
+        // Salva os dados do usuário no Firestore
         await _userDatabase.saveUserData(userCredential.user!.uid, name);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cadastro realizado com sucesso!')),
-        );
-
-        _nameController.clear();
-        _emailController.clear();
-        _passwordController.clear();
-        _confirmpasswordController.clear();
-
-        setState(() {
-          _isLoading = false;
-        });
-
-        Navigator.pushReplacementNamed(context, '/');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao realizar o cadastro.')),
-        );
-
+        if (mounted) {
+          _showSnackBar('Cadastro realizado com sucesso!');
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Erro ao cadastrar: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao cadastrar: ${e.toString()}')),
-      );
+    }
+  }
 
-      setState(() {
-        _isLoading = false;
-      });
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 
@@ -89,6 +90,7 @@ class CadastroScreenState extends State<CadastroScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        title: const Text('Cadastro', style: TextStyle(color: Colors.white)),
       ),
       backgroundColor: const Color(0xFFFF6C00),
       body: SingleChildScrollView(
@@ -100,23 +102,17 @@ class CadastroScreenState extends State<CadastroScreen> {
               'lib/assets/images/LOGO4.png',
               height: 120.0,
             ),
-            const Text(
-              'Cadastre-se',
-              style: TextStyle(
-                fontSize: 23.0,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
             const SizedBox(height: 20),
-            _buildTextField(_nameController, 'Nome'),
+            _buildTextField(_nameController, 'Nome Completo'),
             _buildTextField(_emailController, 'E-mail'),
             _buildPasswordField(_passwordController, 'Senha'),
             _buildPasswordField(
                 _confirmpasswordController, 'Confirme sua senha'),
             const SizedBox(height: 20),
             _isLoading
-                ? const CircularProgressIndicator()
+                ? const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
                 : ElevatedButton(
                     onPressed: _submitData,
                     style: ElevatedButton.styleFrom(
@@ -129,9 +125,7 @@ class CadastroScreenState extends State<CadastroScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Cadastrar'),
+                    child: const Text('Cadastrar'),
                   ),
           ],
         ),
